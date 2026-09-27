@@ -143,14 +143,21 @@ class Session:
             return
         idx = int(a["choice"][3:])
         print(f"   → {labels[idx]!r} (confidence {a['confidence']:.2f})")
-        self.record(question=question, kind=f["kind"], options=labels,
-                    choice=labels[idx], confidence=a["confidence"])
-        if a["confidence"] < self.min_confidence and self.ask_human(f["question"]):
-            return
+        entry = dict(question=question, kind=f["kind"], options=labels, choice=labels[idx], confidence=a["confidence"])
+        if a["confidence"] < self.min_confidence:
+            if self.pause:
+                self.record(**entry)  # you pick, so no click to check
+            if self.ask_human(f["question"]):
+                return
         if f["kind"] == "select":
             self.page.select_option(f["sel"], f["options"][idx]["value"])
+            checked = self.page.input_value(f["sel"]) == f["options"][idx]["value"]
         else:
             self.set_checked(f["options"][idx]["sel"])
+            checked = self.page.is_checked(f["options"][idx]["sel"])
+        # Whether the page's input took the pick. A site that styles tiles over hidden inputs may never
+        # tick them, so False flags a click to check, not a certain failure.
+        self.record(**entry, checked=checked)
 
     def answer_checkboxes(self, f):
         """Select-all-that-apply: one Noul per option, all in a single parallel request.
@@ -171,11 +178,15 @@ class Session:
             return
         for label, p in zip(labels, probs):
             print(f"   {'☑' if p >= 0.5 else '☐'} {label!r} (p={p:.2f})")
-        self.record(question=question, kind="checkbox", options=labels, probs=probs)
-        if any(0.35 < p < 0.65 for p in probs) and self.ask_human(f["question"]):
-            return
+        if any(0.35 < p < 0.65 for p in probs):
+            if self.pause:
+                self.record(question=question, kind="checkbox", options=labels, probs=probs)
+            if self.ask_human(f["question"]):
+                return
         for o, p in zip(f["options"], probs):
             self.set_checked(o["sel"], p >= 0.5)
+        checked = all(self.page.is_checked(o["sel"]) == (p >= 0.5) for o, p in zip(f["options"], probs))
+        self.record(question=question, kind="checkbox", options=labels, probs=probs, checked=checked)
 
     def answer_text(self, f):
         """Text box: fill identity fields from your info. Open-ended answers go to you."""

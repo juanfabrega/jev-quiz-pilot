@@ -182,7 +182,7 @@ Every decision goes to `runs/<timestamp>.jsonl` with the provider, question, opt
 
 - OpenRouter's decisions API is in alpha. It may change and break this tool.
 - Field detection is generic. On unusual form builders, question text may come out garbled.
-- Jev sees only the question text. Questions that depend on a passage, image, or table above them lose that context.
+- Jev sees only text. It gets passages, tables, and formulas in the question's block, but not images.
 - Cost on OpenRouter: $0.042 per million input tokens, $0 output. See TypeSafe's site for direct pricing.
 
 ## Develop
@@ -193,6 +193,15 @@ uv run pytest
 ```
 
 The tests load a local HTML quiz in headless Chromium. They need no API key.
+
+The benchmark runs the tool on real quiz sites and scores how it navigates them, not Jev's answers. For each question, it checks that the tool found it, read clean question text and every option, and made the click register. It also checks that the tool touched nothing outside the quiz, reached the end, and stayed on the quiz.
+
+```sh
+uv run python bench/run.py --fake-jev          # all cases, no API calls
+uv run python bench/run.py funtrivia --record  # load the live site and save a snapshot
+```
+
+Cases live in `bench/cases.py`. Snapshots and results stay out of git, since they hold other sites' pages.
 
 To refresh the images in `docs/`:
 

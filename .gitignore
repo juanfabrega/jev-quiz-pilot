@@ -22,3 +22,7 @@ dist/
 
 # Demo recording scratch
 docs/.recording/
+
+# Benchmark snapshots and results hold third-party page content
+bench/snapshots/
+bench/results/
