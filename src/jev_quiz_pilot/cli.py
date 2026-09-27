@@ -1,6 +1,5 @@
 """Command line: flags first, prompts for anything missing when run in a terminal."""
 import argparse
-import os
 import shlex
 import sys
 from datetime import datetime
@@ -9,6 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from .banner import BANNER
+from .jev import PROVIDERS, pick_provider
 
 DEFAULT_ROLE = "You are an expert in the subject of this quiz. Pick the correct answer to each question."
 DEFAULT_CDP_URL = "http://localhost:9222"
@@ -37,6 +37,8 @@ def build_parser():
     p.add_argument("--submit", action="store_true", help="Click the final Submit button. Off by default.")
     p.add_argument("--no-pause", action="store_true",
                    help="Never wait for you. On low confidence, use Jev's pick anyway.")
+    p.add_argument("--provider", choices=["auto", *PROVIDERS], default="auto",
+                   help="Where to send requests. auto uses whichever key is set, TypeSafe first (default: auto).")
     p.add_argument("-y", "--yes", action="store_true", help="Skip the setup prompts and use defaults.")
     p.add_argument("--cdp-url", default=DEFAULT_CDP_URL, help=f"Chrome debugging address (default: {DEFAULT_CDP_URL}).")
     return p
@@ -81,6 +83,8 @@ def rerun_command(args, info):
         cmd.append("--submit")
     if args.no_pause:
         cmd.append("--no-pause")
+    if args.provider != "auto":
+        cmd += ["--provider", args.provider]
     if args.cdp_url != DEFAULT_CDP_URL:
         cmd += ["--cdp-url", args.cdp_url]
     return shlex.join(cmd)
@@ -97,9 +101,11 @@ def main():
     if sys.stdout.isatty():
         print(BANNER)
 
-    load_dotenv()  # reads OPENROUTER_API_KEY from .env
-    if not os.environ.get("OPENROUTER_API_KEY"):
-        sys.exit("OPENROUTER_API_KEY is not set. Put it in .env or export it. See .env.example.")
+    load_dotenv()  # reads the API keys from .env
+    try:
+        provider = pick_provider(args.provider)
+    except ValueError as e:
+        sys.exit(str(e))
 
     try:
         if sys.stdin.isatty() and not args.yes:
@@ -124,8 +130,9 @@ def main():
                 sys.exit(f"Can't reach Chrome at {args.cdp_url}. Start it with remote debugging; see the README.")
             page = browser.contexts[0].pages[-1]  # the most recently opened tab
             print(f"Controlling: {page.title()}  ({page.url})")
+            print(f"Provider: {provider.name} ({provider.key_env}, model {provider.model})")
             print(f"Role: {role}\nLog: {log_path}")
-            Session(page, role, log_path, info=info, min_confidence=args.min_confidence,
+            Session(page, provider, role, log_path, info=info, min_confidence=args.min_confidence,
                     submit=args.submit, pause=not args.no_pause).run()
     except (KeyboardInterrupt, EOFError):
         print("\nStopped.")

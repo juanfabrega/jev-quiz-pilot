@@ -1,6 +1,6 @@
 # jev-quiz-pilot
 
-Let Jev (`typesafe/jev-1.13` on OpenRouter) navigate a web quiz in your Chrome, so you can measure how well it does. The tool reads each question and its options from the page, asks Jev to pick, clicks the answer, and moves to the next page. Jev does not see screenshots or write text.
+Let Jev 1.13, TypeSafe's decision model, navigate a web quiz in your Chrome, so you can measure how well it does. The tool reads each question and its options from the page, asks Jev to pick, clicks the answer, and moves to the next page. Jev does not see screenshots or write text.
 
 ## Acceptable use
 
@@ -14,8 +14,17 @@ Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```sh
 uv sync
-cp .env.example .env   # then put your OpenRouter key in .env
+cp .env.example .env   # then add one API key
 ```
+
+Use either provider. Set the key for the one you have:
+
+| Provider | Key | Model sent |
+|---|---|---|
+| [TypeSafe](https://docs.typesafe.ai) (direct) | `TYPESAFE_API_KEY` | `jev-1.13.0` |
+| [OpenRouter](https://openrouter.ai/typesafe) | `OPENROUTER_API_KEY` | `typesafe/jev-1.13` |
+
+If both keys are set, the tool uses TypeSafe. Pass `--provider openrouter` to override. Both providers run the same model, so you can compare results.
 
 Start Chrome with remote debugging. It needs its own profile folder.
 
@@ -55,6 +64,7 @@ uv run jev-quiz-pilot --yes --role "You are a trained CPA. Pick the correct answ
 | `--min-confidence N` | Below this, the tool pauses so you answer. Default `0.6`. |
 | `--submit` | Click the final Submit button. Off by default. |
 | `--no-pause` | Never wait for you. On low confidence, use Jev's pick anyway. |
+| `--provider NAME` | `auto`, `typesafe`, or `openrouter`. Default `auto` uses whichever key is set, TypeSafe first. |
 | `-y`, `--yes` | Skip the setup prompts. |
 | `--cdp-url URL` | Chrome debugging address. Default `http://localhost:9222`. |
 
@@ -68,14 +78,14 @@ uv run jev-quiz-pilot --yes --role "You are a trained CPA. Pick the correct answ
 
 If a Jev request fails, the tool pauses for you on that question.
 
-Every decision goes to `runs/<timestamp>.jsonl` with the question, options, choice, and confidence. Compare it against the answer key to score Jev.
+Every decision goes to `runs/<timestamp>.jsonl` with the provider, question, options, choice, and confidence. Compare it against the answer key to score Jev.
 
 ## Limits
 
-- It uses OpenRouter's alpha decisions API. The API may change and break this tool.
+- OpenRouter's decisions API is in alpha. It may change and break this tool.
 - Field detection is generic. On unusual form builders, question text may come out garbled.
 - Jev sees only the question text. Questions that depend on a passage, image, or table above them lose that context.
-- Cost: $0.042 per million input tokens, $0 output.
+- Cost on OpenRouter: $0.042 per million input tokens, $0 output. See TypeSafe's site for direct pricing.
 
 ## Develop
 

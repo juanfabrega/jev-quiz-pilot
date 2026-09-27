@@ -21,8 +21,9 @@ SUBMIT_RE = re.compile(r"^\s*(submit|finish|done|send|complete|end (test|exam|as
 
 
 class Session:
-    def __init__(self, page, role, log_path, info=None, min_confidence=0.6, submit=False, pause=True):
+    def __init__(self, page, provider, role, log_path, info=None, min_confidence=0.6, submit=False, pause=True):
         self.page = page
+        self.provider = provider
         self.role = role
         self.info = info or {}
         self.min_confidence = min_confidence
@@ -31,13 +32,13 @@ class Session:
         self.log = log_path.open("a")
 
     def record(self, **entry):
-        self.log.write(json.dumps(entry) + "\n")
+        self.log.write(json.dumps({"provider": self.provider.name, **entry}) + "\n")
         self.log.flush()
 
     def ask(self, state, questions):
         """Call Jev. Returns None on a network or API error, so the caller can hand off to you."""
         try:
-            return decide(state, questions)
+            return decide(self.provider, state, questions)
         except (requests.RequestException, KeyError, ValueError) as e:
             print(f"   ⚠ Jev request failed: {e}")
             return None
