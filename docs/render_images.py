@@ -1,7 +1,7 @@
 """Render the README hero and the GitHub social preview from the CLI banner.
 
 Run: uv run python docs/render_images.py
-Writes docs/hero.png and docs/social-preview.png.
+Writes docs/hero.png, docs/social-preview.png, and docs/how-it-works.png (from docs/how-it-works.html).
 """
 import html
 from pathlib import Path
@@ -58,4 +58,7 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     render(browser.new_page(device_scale_factor=2), HERO, ".win", DOCS / "hero.png")
     render(browser.new_page(), SOCIAL, ".social", DOCS / "social-preview.png")  # GitHub wants exactly 1280x640
+    page = browser.new_page(device_scale_factor=2, viewport={"width": 1400, "height": 900})
+    page.goto((DOCS / "how-it-works.html").resolve().as_uri())
+    page.locator("#card").screenshot(path=DOCS / "how-it-works.png", omit_background=True)
     browser.close()

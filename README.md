@@ -133,28 +133,14 @@ uv run jev-quiz-pilot --cdp-url http://localhost:9222
 
 ## How it works
 
+<p align="center">
+  <img src="docs/how-it-works.png" alt="Diagram in three columns. Left: a quiz page asking the capital of Australia, with Canberra selected, a dismissed cookie banner, and a Next button. Middle: jev-quiz-pilot's six steps: read the fields, clear banners, ask Jev, check confidence (0.6 or more clicks, less pauses), click the answer, repeat on the next page. Right: Jev 1.13 receives the question as a typed choice request and answers opt2, Canberra, with probability 1.00. Arrows: the tool reads the page, asks Jev, gets the answer, and clicks." width="900">
+</p>
+
 Jev never sees the page. It doesn't read screenshots or write text; it only makes typed decisions. The tool is Jev's eyes and hands: it reads each question from the page, asks Jev to pick, and clicks the answer.
 
-```mermaid
-flowchart TD
-    open["Open the quiz<br/>(new window, or your Chrome with --cdp-url)"] --> read["Read the page's fields<br/>extract.js"]
-    read --> banners["Dismiss cookie banners"]
-    banners --> ask["Ask Jev about the next field"]
-    ask --> sure{"Confident?"}
-    sure -- yes --> answer["Click the answer<br/>or the tile drawn over it"]
-    sure -- no --> you["Pause so you answer<br/>(--no-pause: use Jev's pick)"]
-    answer --> reread["Re-read the page<br/>for fields that just appeared"]
-    you --> reread
-    reread --> more{"More fields?"}
-    more -- yes --> ask
-    more -- no --> button{"Button?"}
-    button -- Next --> read
-    button -- "Submit, or none" --> stop["Stop for your review<br/>(--submit: click it)"]
-```
-
-### What Jev receives
-
-Each field becomes one request: a `state` holding the question, plus a typed question over the options. This is a real request and answer for a radio question:
+<details>
+<summary>See the full request and answer from the diagram</summary>
 
 ```jsonc
 // Request
@@ -178,7 +164,9 @@ Each field becomes one request: a `state` holding the question, plus a typed que
             "probabilities": { "opt0": 0, "opt1": 0, "opt2": 1, "opt3": 0 } } }
 ```
 
-The tool maps `opt2` back to "Canberra" and clicks it. Each field type uses a different request:
+</details>
+
+Each field type uses a different request:
 
 | Field | Request to Jev |
 |---|---|
@@ -209,7 +197,7 @@ The tests load a local HTML quiz in headless Chromium. They need no API key.
 To refresh the images in `docs/`:
 
 ```sh
-uv run python docs/render_images.py   # hero.png and social-preview.png
+uv run python docs/render_images.py   # hero.png, social-preview.png, how-it-works.png
 uv run python docs/record_demo.py     # demo.gif and demo-buzzfeed.gif; needs an API key and ffmpeg
 ```
 
