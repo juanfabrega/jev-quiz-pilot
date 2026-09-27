@@ -166,17 +166,24 @@ Jev never sees the page. It doesn't read screenshots or write text; it only make
 
 </details>
 
+Before answering, Jev also helps the tool read the page:
+
+| Decision | Request to Jev |
+|---|---|
+| Is this field part of the quiz? | One `noul` per field on the page, given its question, options, and nearby text. Below 0.35 the field is skipped, such as a site search box or language picker. Between 0.35 and 0.65, the tool pauses. |
+| Which text is the question? | Only when the block around the options holds more than 6 pieces of text. One `noul` per piece, given the block's HTML; the tool keeps the pieces Jev marks as the question. Otherwise the tool uses the block's text without the options. |
+
 Each field type uses a different request:
 
 | Field | Request to Jev |
 |---|---|
-| Radio buttons, dropdown | One `choice` over the options. Below `--min-confidence`, the tool pauses. |
-| Checkboxes | One `noul` (probability of yes) per option, all in one request. The option list goes in the `state`, since the questions can't see each other. Any probability between 0.35 and 0.65 pauses. |
+| Radio buttons (including ARIA ones), dropdown, answer tiles | One `choice` over the options. Below `--min-confidence`, the tool pauses. Answer tiles are clickable elements with no form input, such as JetPunk's; with `--no-pause`, a low-confidence tile pick is skipped. |
+| Checkboxes, including ARIA ones | One `noul` (probability of yes) per option, all in one request. The option list goes in the `state`, since the questions can't see each other. Any probability between 0.35 and 0.65 pauses. |
 | Text box | One `choice` over your `--info` keys, such as `full_name`. Anything else pauses. Multi-line boxes are skipped. |
 
 If a request to Jev fails, the tool pauses for you on that field.
 
-Every decision goes to `runs/<timestamp>.jsonl` with the provider, question, options, choice, and confidence. Compare it against the answer key to score Jev.
+Every decision goes to `runs/<timestamp>.jsonl` with the provider, question, options, choice, and confidence. `checked` says whether the page took the click: the input is set, or the answer tile changed. Compare the log against the answer key to score Jev.
 
 ## Limits
 
