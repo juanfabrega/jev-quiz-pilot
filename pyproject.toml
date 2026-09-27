@@ -13,6 +13,10 @@ dependencies = [
     "requests>=2.32",
 ]
 
+[project.urls]
+Homepage = "https://github.com/juanfabrega/jev-quiz-pilot"
+Issues = "https://github.com/juanfabrega/jev-quiz-pilot/issues"
+
 [project.scripts]
 jev-quiz-pilot = "jev_quiz_pilot.cli:main"
 

@@ -1,7 +1,17 @@
-# jev-quiz-pilot
-
 <p align="center">
   <img src="docs/hero.png" alt="Terminal running jev-quiz-pilot, showing the JEV QUIZ PILOT banner in block letters" width="640">
+</p>
+
+<h1 align="center">Jev Quiz Pilot</h1>
+
+<p align="center"><b>Put Jev in the pilot's seat of a web quiz, and measure how it does.</b></p>
+
+<p align="center">
+  <a href="https://github.com/juanfabrega/jev-quiz-pilot/actions/workflows/tests.yml"><img src="https://github.com/juanfabrega/jev-quiz-pilot/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white" alt="Python 3.11+">
+  <a href="https://docs.typesafe.ai"><img src="https://img.shields.io/badge/powered%20by-Jev%201.13-58a6ff" alt="Powered by Jev 1.13"></a>
+  <img src="https://img.shields.io/badge/browser-Playwright-2EAD33?logo=playwright&logoColor=white" alt="Playwright">
 </p>
 
 Let Jev 1.13, TypeSafe's decision model, navigate a web quiz in your Chrome, so you can measure how well it does. The tool reads each question and its options from the page, asks Jev to pick, clicks the answer, and moves to the next page. Jev does not see screenshots or write text.
