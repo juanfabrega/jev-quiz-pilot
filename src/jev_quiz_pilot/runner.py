@@ -238,6 +238,35 @@ class Session:
         print("\nNo Next or Submit button. This looks like the last page.")
         return False
 
+    def quiz_fields(self, fields):
+        """Jev decides which fields belong to the quiz, so search boxes, language pickers, quiz settings,
+        and comment forms stay untouched. If the request fails, all fields count, as before."""
+        described = [f"{f['kind']} field. Question or label: {f['question'][:300]!r}."
+                     + (f" Options: {[o['label'][:60] for o in f['options'][:8]]}." if f.get("options") else "")
+                     + f" Nearby text: {f.get('context', '')!r}"
+                     for f in fields]
+        answers = self.ask({"page_title": self.page.title(), "page_fields": described}, {f"f{i}": {
+            "type": "noul",
+            "instructions": "Is this field part of the quiz or form the person came to fill in: one of its "
+                            "questions, or a detail it asks about the person? Say no for site search, navigation, "
+                            "language or translation, quiz settings, newsletter sign-up, login, and comments. "
+                            f"Field: {d}",
+        } for i, d in enumerate(described)})
+        try:
+            probs = [answers[f"f{i}"]["noul"] for i in range(len(fields))]
+        except (TypeError, KeyError):
+            return fields
+        keep = []
+        for f, p in zip(fields, probs):
+            self.record(question=f["question"], kind=f["kind"], part_of_quiz=p)
+            if p >= 0.65:
+                keep.append(f)
+            elif p >= 0.35:
+                self.ask_human(f["question"], f"Not sure this field is part of the quiz (p={p:.2f})")
+            else:
+                print(f" (skipped, not part of the quiz: {f['question'][:70]!r} [{f['kind']}], p={p:.2f})")
+        return keep
+
     def answer(self, f):
         print(f" Q: {f['question'][:100]!r} [{f['kind']}]")
         if f["kind"] in ("radio", "select"):
@@ -256,14 +285,20 @@ class Session:
             self.dismiss_banners()
             # Some quizzes are one long page that reveals questions as you answer, so keep
             # checking for new ones until none appear. Answered fields are skipped by content.
-            done = set()
+            done, answered = set(), 0
             for _ in range(50):
                 if not fields:
                     break
                 for f in fields:
                     done |= field_keys(f)
+                for f in self.quiz_fields(fields):
                     self.answer(f)
+                    answered += 1
                 time.sleep(0.5)
                 fields = [f for f in self.page.evaluate(EXTRACT_JS) if not field_keys(f) & done]
+            if not answered:
+                # A Next button here could lead anywhere, such as another quiz, so don't guess.
+                print("\nFound no quiz questions on this page, so stopping here.")
+                break
             if not self.click_forward():
                 break

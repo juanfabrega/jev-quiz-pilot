@@ -96,5 +96,13 @@
     if (groups[f.key].length > 1) Object.assign(f, questionBlock(groups[f.key], i));
     f.question = (f.pieces || []).join(' ') || f.options[0].label;  // a lone checkbox: its label is the question
   });
+  // Nearby text, so Jev can tell a quiz question from site controls: the closest ancestor that says
+  // clearly more than the field itself, e.g. "Check the sections to include in your exam".
+  fields.forEach(f => {
+    let e = groups[f.key] ? groups[f.key][0] : document.querySelector(f.sel);
+    const own = f.question.length + (f.options || []).reduce((n, o) => n + o.label.length, 0);
+    while (e.parentElement && e.parentElement !== document.body && txt(e).length < own + 40) e = e.parentElement;
+    f.context = txt(e).slice(0, 300);
+  });
   return fields;
 }
