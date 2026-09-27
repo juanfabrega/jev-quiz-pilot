@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/browser-Playwright-2EAD33?logo=playwright&logoColor=white" alt="Playwright">
 </p>
 
-Let Jev 1.13, TypeSafe's decision model, navigate a web quiz in your Chrome, so you can measure how well it does. The tool reads each question and its options from the page, asks Jev to pick, clicks the answer, and moves to the next page. Jev does not see screenshots or write text.
+Let Jev 1.13, TypeSafe's decision model, navigate a web quiz in a browser, so you can measure how well it does. The tool reads each question and its options from the page, asks Jev to pick, clicks the answer, and moves to the next page. Jev does not see screenshots or write text.
 
 ## See it run
 
@@ -22,10 +22,10 @@ Let Jev 1.13, TypeSafe's decision model, navigate a web quiz in your Chrome, so 
   <img src="docs/demo.gif" alt="Jev takes a three-page general knowledge quiz. The quiz is on the left; the CLI output with each pick and its confidence is on the right. Jev scores 9 out of 9." width="900">
 </p>
 
-Try it yourself on the [demo quiz](https://juanfabrega.github.io/jev-quiz-pilot/demo/). Open it in your debugging Chrome (see [Setup](#setup)), then run:
+Try it yourself on the [demo quiz](https://juanfabrega.github.io/jev-quiz-pilot/demo/). After [Setup](#setup), run:
 
 ```sh
-uv run jev-quiz-pilot --submit
+uv run jev-quiz-pilot https://juanfabrega.github.io/jev-quiz-pilot/demo/ --submit
 ```
 
 ## Acceptable use
@@ -52,7 +52,35 @@ Use either provider. Set the key for the one you have:
 
 If both keys are set, the tool uses TypeSafe. Pass `--provider openrouter` to override. Both providers run the same model, so you can compare results.
 
-Start Chrome with remote debugging. It needs its own profile folder.
+The tool opens the quiz in your installed Google Chrome. Without Chrome, it uses Playwright's Chromium; install it once with `uv run playwright install chromium`.
+
+## Run
+
+Pass the quiz URL:
+
+```sh
+uv run jev-quiz-pilot https://example.com/quiz
+```
+
+A browser window opens at the quiz. The tool then:
+
+1. Asks who Jev should act as, and your name and email for identity fields. Press Enter to skip any question.
+2. Prints the matching command, so later runs need no prompts.
+3. Waits while you log in or open the first question, if needed. Press Enter to start.
+4. Answers each page and clicks Next. It stops before the final Submit unless you pass `--submit`.
+5. Keeps the window open until you press Enter, so you can review the answers.
+
+Repeat runs skip the prompts:
+
+```sh
+uv run jev-quiz-pilot https://example.com/quiz --yes --role "You are a trained CPA. Pick the correct answer to each question."
+```
+
+A local HTML file works too: `uv run jev-quiz-pilot docs/demo/index.html`.
+
+### Use your own Chrome
+
+The new window starts logged out. If a quiz needs your saved logins, attach to your own Chrome instead. Start Chrome with remote debugging; it needs its own profile folder.
 
 macOS:
 
@@ -67,24 +95,17 @@ Windows:
 "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir=%TEMP%\jev-chrome
 ```
 
-## Run
-
-Open the quiz in that Chrome window, then run:
+Open the quiz in that window, then run:
 
 ```sh
-uv run jev-quiz-pilot
-```
-
-The first run asks who Jev should act as, and your name and email for identity fields. Press Enter to skip any question. At the end it prints the matching command, so later runs need no prompts:
-
-```sh
-uv run jev-quiz-pilot --yes --role "You are a trained CPA. Pick the correct answer to each question."
+uv run jev-quiz-pilot --cdp-url http://localhost:9222
 ```
 
 ## Options
 
 | Flag | Purpose |
 |---|---|
+| `URL` | First argument. The quiz to open: a web address or a local HTML file. |
 | `--role TEXT` | Who Jev acts as. Keep it short; unrelated text lowers accuracy. |
 | `--info KEY=VALUE` | A fact for identity fields, such as `full_name="Jane Doe"` or `email=jane@example.com`. Repeatable. |
 | `--min-confidence N` | Below this, the tool pauses so you answer. Default `0.6`. |
@@ -92,7 +113,7 @@ uv run jev-quiz-pilot --yes --role "You are a trained CPA. Pick the correct answ
 | `--no-pause` | Never wait for you. On low confidence, use Jev's pick anyway. |
 | `--provider NAME` | `auto`, `typesafe`, or `openrouter`. Default `auto` uses whichever key is set, TypeSafe first. |
 | `-y`, `--yes` | Skip the setup prompts. |
-| `--cdp-url URL` | Chrome debugging address. Default `http://localhost:9222`. |
+| `--cdp-url URL` | Attach to your own Chrome instead of opening a new window. See [Use your own Chrome](#use-your-own-chrome). |
 
 ## How it answers
 
