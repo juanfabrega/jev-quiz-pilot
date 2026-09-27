@@ -69,23 +69,25 @@
   };
   document.querySelectorAll('[data-jev-block]').forEach(e => e.removeAttribute('data-jev-block'));
   const fields = [], groups = {};
-  document.querySelectorAll('input, select, textarea').forEach((el, i) => {
+  document.querySelectorAll('input, select, textarea').forEach(el => {
     if (!vis(el) || el.disabled) return;
     const t = (el.type || '').toLowerCase();
     if (['hidden','submit','button','reset','image','file','password'].includes(t)) return;
-    el.setAttribute('data-jev', i);
-    const sel = `[data-jev="${i}"]`;
+    // An id that stays with the element across reads, so a redrawn label doesn't look like a new field.
+    if (!el.hasAttribute('data-jev')) el.setAttribute('data-jev', window.__jevIds = (window.__jevIds || 0) + 1);
+    const id = el.getAttribute('data-jev');
+    const sel = `[data-jev="${id}"]`;
     if (t === 'radio' || t === 'checkbox') {
-      const key = t + ':' + (el.name || i);
+      const key = t + ':' + (el.name || id);
       let f = fields.find(x => x.key === key);
       if (!f) { f = {key, kind: t, question: namedQuestion(el), options: []}; fields.push(f); groups[key] = []; }
       f.options.push({label: labelFor(el), sel});
       groups[key].push(el);
     } else if (el.tagName === 'SELECT') {
-      fields.push({key: 'select:' + i, kind: 'select', question: namedQuestion(el) || labelFor(el), sel,
+      fields.push({key: 'select:' + id, kind: 'select', question: namedQuestion(el) || labelFor(el), sel,
         options: [...el.options].filter(o => o.value).map(o => ({label: o.text.trim(), value: o.value}))});
     } else {
-      fields.push({key: 'text:' + i, kind: 'text', question: labelFor(el), sel, filled: !!el.value,
+      fields.push({key: 'text:' + id, kind: 'text', question: labelFor(el), sel, filled: !!el.value,
         multiline: el.tagName === 'TEXTAREA'});
     }
   });

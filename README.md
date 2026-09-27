@@ -197,7 +197,7 @@ The tests load a local HTML quiz in headless Chromium. They need no API key.
 The benchmark runs the tool on real quiz sites and scores how it navigates them, not Jev's answers. For each question, it checks that the tool found it, read clean question text and every option, and made the click register. It also checks that the tool touched nothing outside the quiz, reached the end, and stayed on the quiz.
 
 ```sh
-uv run python bench/run.py --fake-jev          # all cases, no API calls
+uv run python bench/run.py --fake-answers      # all cases; answers skip Jev (always the last option)
 uv run python bench/run.py funtrivia --record  # load the live site and save a snapshot
 ```
 

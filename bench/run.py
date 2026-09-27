@@ -2,7 +2,7 @@
 
   uv run python bench/run.py                    # every case, 4 at a time
   uv run python bench/run.py funtrivia demo     # some cases
-  uv run python bench/run.py --fake-jev         # no API calls: always picks the last option
+  uv run python bench/run.py --fake-answers         # answers skip Jev: always the last option
   uv run python bench/run.py --record           # save a snapshot of each page for later replays
 
 A case replays from bench/snapshots/ when a snapshot exists, else it loads the live site.
@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from difflib import SequenceMatcher
@@ -32,7 +33,7 @@ TRUTH_JS = """(c) => {
   const txt = e => (e.innerText || '').replace(/\\s+/g, ' ').trim();
   window.__benchIds = window.__benchIds || 0;
   return [...document.querySelectorAll(c.block)].filter(b => b.getClientRects().length).map(b => {
-    b.dataset.benchId = b.dataset.benchId || location.pathname + '#' + window.__benchIds++;
+    b.dataset.benchId = b.dataset.benchId || performance.timeOrigin + '#' + window.__benchIds++;  // unique per page load
     const options = [...b.querySelectorAll(c.option)].map(txt).filter(Boolean);
     let question;
     if (c.question) question = txt(b.querySelector(c.question));
@@ -49,7 +50,15 @@ TRUTH_JS = """(c) => {
 
 
 def norm(s):
-    return re.sub(r"[^a-z0-9]", "", s.lower())
+    return re.sub(r"[^a-z0-9]", "", unicodedata.normalize("NFKC", s).lower())  # NFKC: math 𝑥 becomes x
+
+
+def same_options(got, want):
+    """Same count, and each option close to one of the page's. Loose, since formulas read differently
+    before and after MathJax draws them."""
+    got, want = sorted(map(norm, got)), sorted(map(norm, want))
+    return len(got) == len(want) and all(
+        any(g in w or w in g or SequenceMatcher(None, g, w).ratio() >= 0.75 for w in want) for g in got)
 
 
 def score(case, truth, decisions, output, final_url, error):
@@ -67,8 +76,7 @@ def score(case, truth, decisions, output, final_url, error):
             matched.setdefault(key, d)
     total = case.get("total", len(truth))
     clean = [k for k, d in matched.items() if len(norm(d["question"])) <= 1.3 * len(norm(k)) + 30]
-    options = [k for k, d in matched.items()
-               if sorted(map(norm, d["options"])) == sorted(map(norm, truth[k]))]
+    options = [k for k, d in matched.items() if same_options(d["options"], truth[k])]
     checked = [k for k, d in matched.items() if d.get("checked")]
     end_ok = case.get("end") != "submit" or "Reached Submit" in output
     stay_ok = not case.get("stay") or final_url.startswith(case["stay"])
@@ -76,31 +84,35 @@ def score(case, truth, decisions, output, final_url, error):
              checked=len(checked), stray=len(stray), end_ok=end_ok, stay_ok=stay_ok, error=error,
              stray_examples=stray[:5],
              missed=[k[:80] for k in truth if k not in matched][:5],
-             unclean=[matched[k]["question"][:120] for k in matched if k not in clean][:3])
+             unclean=[matched[k]["question"][:120] for k in matched if k not in clean][:3],
+             option_diffs=[(matched[k]["options"], truth[k]) for k in matched if k not in options][:3])
     r["pass"] = (not error and stay_ok and end_ok and r["stray"] == 0
                  and r["found"] == r["clean"] == r["options"] == r["checked"] == total)
     return r
 
 
-def run_one(name, out_dir, fake_jev, record):
+def run_one(name, out_dir, fake_answers, record):
     """Runs in a child process. Writes <name>.json with the score."""
     from dotenv import load_dotenv
     from playwright.sync_api import sync_playwright
 
     from jev_quiz_pilot import runner
-    from jev_quiz_pilot.jev import Provider, pick_provider
+    from jev_quiz_pilot.jev import pick_provider
 
     case = CASES[name]
     load_dotenv(ROOT / ".env")
-    if fake_jev:
-        provider = Provider("fake", "", "", "fake")
+    provider = pick_provider()
+    if fake_answers:
+        real = runner.decide
 
         def fake(provider, state, questions):
+            """Answer picks skip the API: always the last option, or yes. The harness's own questions,
+            such as which text is the question, still go to Jev, since they are part of what we test."""
+            if "assessment_question" not in state:
+                return real(provider, state, questions)
             return {k: {"choice": list(q["criteria"])[-1], "confidence": 0.9} if q["type"] == "choice"
                     else {"noul": 0.9} for k, q in questions.items()}
         runner.decide = fake
-    else:
-        provider = pick_provider()
 
     truth = {}
 
@@ -164,7 +176,7 @@ def run_one(name, out_dir, fake_jev, record):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("cases", nargs="*", help="Case names. Default: all.")
-    ap.add_argument("--fake-jev", action="store_true", help="No API calls; always pick the last option.")
+    ap.add_argument("--fake-answers", action="store_true", help="Don't ask Jev for answers; always pick the last option. Cheaper and repeatable.")
     ap.add_argument("--record", action="store_true", help="Load the live site and save a snapshot for replays.")
     ap.add_argument("--jobs", type=int, default=4, help="Cases to run at once (default 4).")
     ap.add_argument("--one", help=argparse.SUPPRESS)
@@ -172,7 +184,7 @@ def main():
     args = ap.parse_args()
 
     if args.one:
-        run_one(args.one, Path(args.out), args.fake_jev, args.record)
+        run_one(args.one, Path(args.out), args.fake_answers, args.record)
         return
 
     names = args.cases or list(CASES)
@@ -184,7 +196,7 @@ def main():
 
     def child(name):
         cmd = [sys.executable, "-u", __file__, "--one", name, "--out", str(out)]
-        cmd += ["--fake-jev"] * args.fake_jev + ["--record"] * args.record
+        cmd += ["--fake-answers"] * args.fake_answers + ["--record"] * args.record
         with (out / f"{name}.log").open("w") as f:
             try:
                 subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, timeout=600, cwd=out)

@@ -46,10 +46,11 @@ CASES = {
         total=5,
         block=".ipq-question", option="label.ipq-choice", exclude=".ipq-explanation, button, a",
     ),
-    # One question per page, "Next ❯" button, server round trip per page.
+    # One question per page, "Next ❯" button, server round trip per page. There is no Submit button:
+    # the last "Next ❯" submits, so the run ends on the results page.
     "w3schools": dict(
         url="https://www.w3schools.com/quiztest/quiztest.asp?qtest=JS",
-        total=25, end="submit", stay="https://www.w3schools.com/quiztest/", live=True,  # recording it hangs
+        total=25, stay="https://www.w3schools.com/quiztest/", live=True,  # recording it hangs
         block="#quizcontainer", question="#qtext", option="label.radiocontainer",
     ),
     # Answer tiles are plain divs: no inputs, roles, or tabindex. Needs Start first.

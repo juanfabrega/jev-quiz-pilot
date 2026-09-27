@@ -25,15 +25,21 @@ BLOCK_HTML_JS = (HERE / "blockhtml.js").read_text()
 NOISY_PIECES = 6
 
 # The whole label must be a navigation word, so "Next (Shift + N)" on an ad's video player doesn't match.
+ARROW = r"[›>→»❯❱▸▶►⟩〉]"
 NEXT_RE = re.compile(
-    r"^\s*(next|continue|forward|proceed|save (and|&) (next|continue)|submit answer)"
-    r"(\s+(question|page|step|section))?\s*[›>→»]?\s*$|^\s*[›>→»]\s*$", re.I)
-SUBMIT_RE = re.compile(r"^\s*(submit|finish|done|send|complete|end)(\s+(test|exam|assessment|quiz|answers?))?\s*$", re.I)
+    rf"^\s*(next|continue|forward|proceed|save (and|&) (next|continue)|submit answer)"
+    rf"(\s+(question|page|step|section))?\s*{ARROW}?\s*$|^\s*{ARROW}\s*$", re.I)
+SUBMIT_RE = re.compile(
+    rf"^\s*(submit|finish|done|send|complete|end)(\s+(my|your|all))?(\s+(test|exam|assessment|quiz|answers?))?"
+    rf"\s*[!.]?\s*{ARROW}?\s*$", re.I)
 
 
-def field_key(f):
-    """Identifies a field by what it asks, since the page may re-render it with new ids."""
-    return f["kind"], f["question"], tuple(o["label"] for o in f.get("options", []))
+def field_keys(f):
+    """Identifies a field two ways, so it's answered once. By content: the page may re-render it with new
+    elements. By element: the page may redraw its labels in place, e.g. MathJax typesetting a formula."""
+    options = f.get("options", [])
+    element = f.get("sel") or tuple(o["sel"] for o in options)  # dropdown or text box, else the group's inputs
+    return {(f["kind"], f["question"], tuple(o["label"] for o in options)), (f["kind"], f["question"], element)}
 
 
 class Session:
@@ -255,9 +261,9 @@ class Session:
                 if not fields:
                     break
                 for f in fields:
-                    done.add(field_key(f))
+                    done |= field_keys(f)
                     self.answer(f)
                 time.sleep(0.5)
-                fields = [f for f in self.page.evaluate(EXTRACT_JS) if field_key(f) not in done]
+                fields = [f for f in self.page.evaluate(EXTRACT_JS) if not field_keys(f) & done]
             if not self.click_forward():
                 break

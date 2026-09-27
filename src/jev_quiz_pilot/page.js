@@ -9,7 +9,10 @@
   el.scrollIntoView({block: 'center'});
   const b = el.getBoundingClientRect();
   const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-  if (b.width && hit && (hit === el || [...(el.labels || [])].some(l => l.contains(hit)))) return sel;
+  if (b.width && hit === el) return sel;
+  // Covered by part of its own label, e.g. a styled overlay: clicking the label ticks the input.
+  const label = b.width && hit && [...(el.labels || [])].find(l => l.contains(hit));
+  if (label) { label.setAttribute('data-jev-click', ''); return '[data-jev-click]'; }
   let tile = el;
   while (tile.parentElement && tile.parentElement.querySelectorAll('input').length === 1) tile = tile.parentElement;
   tile.setAttribute('data-jev-click', '');
