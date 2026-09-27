@@ -39,7 +39,8 @@ def build_parser():
                    help="Below this, pause so you answer (default: 0.6).")
     p.add_argument("--submit", action="store_true", help="Click the final Submit button. Off by default.")
     p.add_argument("--no-pause", action="store_true",
-                   help="Never wait for you. On low confidence, use Jev's pick anyway.")
+                   help="Never wait for you. On low confidence, use Jev's pick anyway, except on answer tiles. "
+                        "Skip fields that may not belong to the quiz.")
     p.add_argument("--provider", choices=["auto", *PROVIDERS], default="auto",
                    help="Where to send requests. auto uses whichever key is set, TypeSafe first (default: auto).")
     p.add_argument("-y", "--yes", action="store_true", help="Skip the setup prompts and use defaults.")

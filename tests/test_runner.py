@@ -1,6 +1,6 @@
 import pytest
 
-from jev_quiz_pilot.runner import NEXT_RE, SUBMIT_RE, is_control_group
+from jev_quiz_pilot.runner import NEXT_RE, SUBMIT_RE, without_controls
 
 
 @pytest.mark.parametrize("label", ["Next", "next question", "Continue →", "›", "Save & Next", "Proceed", "Next ❯"])
@@ -29,8 +29,14 @@ def tiles(*labels):
 
 @pytest.mark.parametrize("labels", [("Finish Quiz", "Try again"), ("Share", "Play again"), ("Start", "Next")])
 def test_quiz_control_tiles_are_not_a_question(labels):
-    assert is_control_group(tiles(*labels))
+    assert without_controls(tiles(*labels)) is None
 
 
 def test_answer_tiles_are_a_question():
-    assert not is_control_group(tiles("17 years", "49 years", "Start of the war"))
+    f = tiles("17 years", "49 years", "Start of the war")
+    assert without_controls(f) == f
+
+
+def test_a_next_button_beside_the_answers_is_dropped():
+    f = without_controls(tiles("enemy", "actor", "builder", "Next"))
+    assert [o["label"] for o in f["options"]] == ["enemy", "actor", "builder"]

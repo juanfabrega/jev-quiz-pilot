@@ -126,7 +126,7 @@ uv run jev-quiz-pilot --cdp-url http://localhost:9222
 | `--info KEY=VALUE` | A fact for identity fields, such as `full_name="Jane Doe"` or `email=jane@example.com`. Repeatable. |
 | `--min-confidence N` | Below this, the tool pauses so you answer. Default `0.6`. |
 | `--submit` | Click the final Submit button. Off by default. |
-| `--no-pause` | Never wait for you. On low confidence, use Jev's pick anyway. |
+| `--no-pause` | Never wait for you. On low confidence, use Jev's pick anyway, except on answer tiles, which it skips. Fields it isn't sure belong to the quiz are skipped. |
 | `--provider NAME` | `auto`, `typesafe`, or `openrouter`. Default `auto` uses whichever key is set, TypeSafe first. |
 | `-y`, `--yes` | Skip the setup prompts. |
 | `--cdp-url URL` | Attach to your own Chrome instead of opening a new window. See [Use your own Chrome](#use-your-own-chrome). |
@@ -182,6 +182,9 @@ Every decision goes to `runs/<timestamp>.jsonl` with the provider, question, opt
 
 - OpenRouter's decisions API is in alpha. It may change and break this tool.
 - Field detection is generic. On unusual form builders, question text may come out garbled.
+- The tool finds Submit by its label. If a quiz's last button reads "Next", as on W3Schools, the tool clicks it and submits.
+- Timed quizzes may run out. Each question takes up to three Jev requests, which can outlast a 10-second timer.
+- Quizzes inside an iframe from another site are not read.
 - Jev sees only text. It gets passages, tables, and formulas in the question's block, but not images.
 - Cost on OpenRouter: $0.042 per million input tokens, $0 output. See TypeSafe's site for direct pricing.
 

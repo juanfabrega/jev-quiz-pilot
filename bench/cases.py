@@ -59,6 +59,21 @@ CASES = {
         start=["Start Quiz"], stay="https://www.jetpunk.com/quizzes/multiple-choice-general-knowledge-1",
         block=".question", option=".choice-text",
     ),
+    # One long page with ads and a consent banner. Answer tiles cover hidden inputs. No Submit button.
+    "buzzfeed": dict(
+        url="https://www.buzzfeed.com/audreyworboys/general-knowledge-trivia-quiz-71",
+        total=35, stay="https://www.buzzfeed.com/audreyworboys/general-knowledge-trivia-quiz-71",
+        live=True,  # recording it hangs
+        block="fieldset[class*=question__]", question="legend", option="[class*=answerText]",
+    ),
+    # Answer tiles are links with #fragments. 10 s per question, questions drawn at random. Needs Start.
+    # Fails today: three Jev calls per question likely outlast the timer, and the previous question
+    # stays in the page after Next, so it gets answered again.
+    "merriam-webster": dict(
+        url="https://www.merriam-webster.com/games/vocabulary-quiz", start=["START THE QUIZ"],
+        total=10, stay="https://www.merriam-webster.com/games/vocabulary-quiz", live=True,
+        block=".question-gstage", question=".question p", option="a.choice",
+    ),
     # Not quizzes at the start: exam settings, Google Translate, and a comment form.
     "4tests-settings": dict(url="https://www.4tests.com/sat", live=True),  # the snapshot never finishes loading
     "quizquestions-article": dict(url="https://quizquestions.uk/multiple-choice-quiz/"),

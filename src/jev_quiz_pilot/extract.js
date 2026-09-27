@@ -113,7 +113,8 @@
     const tiles = [...document.body.querySelectorAll('div, li, span, button, a, label')].filter(e => {
       if (!vis(e) || !pointer(e) || pointer(e.parentElement) || e.querySelector('input, select, textarea')) return false;
       if (e.closest('nav, header, footer, [role=navigation], [role=banner], [role=dialog]')) return false;
-      if (e.tagName === 'A' && e.getAttribute('href') && !/^(#|javascript:)/.test(e.getAttribute('href'))) return false;
+      // A plain link leads away. One with a #fragment or javascript: is usually handled in the page (Merriam-Webster).
+      if (e.tagName === 'A' && e.getAttribute('href') && !/#|^javascript:/.test(e.getAttribute('href'))) return false;
       const t = txt(e); return t && t.length <= 150;
     });
     const byGroup = new Map();
