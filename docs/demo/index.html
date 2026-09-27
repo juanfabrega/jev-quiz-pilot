@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>General Knowledge Quiz · Jev Quiz Pilot demo</title>
+<style>
+  :root { --bg:#f6f8fa; --card:#fff; --text:#1f2328; --muted:#59636e; --line:#d1d9e0; --accent:#0969da; --ok:#1a7f37; --bad:#cf222e; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:32px 16px 48px; }
+  header h1 { margin:0; font-size:26px; }
+  header p { margin:4px 0 0; color:var(--muted); }
+  .progress { height:6px; background:var(--line); border-radius:3px; margin:20px 0 24px; overflow:hidden; }
+  .progress div { height:100%; background:var(--accent); width:0; transition:width .3s; }
+  section { display:none; } section.active { display:block; }
+  h2 { font-size:18px; margin:0 0 12px; color:var(--muted); font-weight:600; }
+  fieldset, .field { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 18px 16px; margin:0 0 14px; }
+  legend, .field > label { font-weight:600; padding:0; float:left; width:100%; margin-bottom:8px; }
+  fieldset > label { display:flex; align-items:center; gap:10px; padding:5px 0; clear:both; cursor:pointer; }
+  input[type=radio], input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); margin:0; }
+  input[type=text], select { width:100%; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  .hint { color:var(--muted); font-weight:400; font-size:14px; }
+  .actions { display:flex; justify-content:flex-end; margin-top:18px; }
+  button { font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:6px; padding:9px 22px; cursor:pointer; }
+  .score { font-size:42px; font-weight:700; margin:8px 0 16px; }
+  #results li { margin:6px 0; } .ok { color:var(--ok); } .bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>General Knowledge Quiz</h1>
+    <p>A demo quiz for <a href="https://github.com/juanfabrega/jev-quiz-pilot">Jev Quiz Pilot</a>. Three pages, nine scored questions.</p>
+  </header>
+  <div class="progress"><div id="bar"></div></div>
+
+  <form id="quiz" onsubmit="return false">
+    <section data-title="Page 1 of 3 · Warm-up">
+      <h2>Page 1 of 3 · Warm-up</h2>
+      <div class="field">
+        <label for="name">Your full name</label>
+        <input id="name" type="text" autocomplete="off">
+      </div>
+      <fieldset>
+        <legend>What is the largest planet in our solar system?</legend>
+        <label><input type="radio" name="planet" value="mercury"> Mercury</label>
+        <label><input type="radio" name="planet" value="jupiter"> Jupiter</label>
+        <label><input type="radio" name="planet" value="saturn"> Saturn</label>
+        <label><input type="radio" name="planet" value="neptune"> Neptune</label>
+      </fieldset>
+      <div class="field">
+        <label for="fe">Which element has the chemical symbol "Fe"?</label>
+        <select id="fe">
+          <option value="">Choose…</option>
+          <option value="gold">Gold</option>
+          <option value="iron">Iron</option>
+          <option value="lead">Lead</option>
+          <option value="tin">Tin</option>
+        </select>
+      </div>
+      <fieldset>
+        <legend>Which of these are prime numbers? <span class="hint">Select all that apply.</span></legend>
+        <label><input type="checkbox" name="prime" value="2"> 2</label>
+        <label><input type="checkbox" name="prime" value="9"> 9</label>
+        <label><input type="checkbox" name="prime" value="11"> 11</label>
+        <label><input type="checkbox" name="prime" value="15"> 15</label>
+        <label><input type="checkbox" name="prime" value="17"> 17</label>
+      </fieldset>
+      <div class="actions"><button type="button" data-next>Next</button></div>
+    </section>
+
+    <section>
+      <h2>Page 2 of 3 · Around the world</h2>
+      <fieldset>
+        <legend>What is the capital of Australia?</legend>
+        <label><input type="radio" name="capital" value="sydney"> Sydney</label>
+        <label><input type="radio" name="capital" value="melbourne"> Melbourne</label>
+        <label><input type="radio" name="capital" value="canberra"> Canberra</label>
+        <label><input type="radio" name="capital" value="perth"> Perth</label>
+      </fieldset>
+      <div class="field">
+        <label for="river">Which is the longest river in South America?</label>
+        <select id="river">
+          <option value="">Choose…</option>
+          <option value="parana">Paraná</option>
+          <option value="amazon">Amazon</option>
+          <option value="orinoco">Orinoco</option>
+          <option value="magdalena">Magdalena</option>
+        </select>
+      </div>
+      <fieldset>
+        <legend>Which of these countries are landlocked? <span class="hint">Select all that apply.</span></legend>
+        <label><input type="checkbox" name="landlocked" value="bolivia"> Bolivia</label>
+        <label><input type="checkbox" name="landlocked" value="chile"> Chile</label>
+        <label><input type="checkbox" name="landlocked" value="mongolia"> Mongolia</label>
+        <label><input type="checkbox" name="landlocked" value="switzerland"> Switzerland</label>
+        <label><input type="checkbox" name="landlocked" value="portugal"> Portugal</label>
+      </fieldset>
+      <div class="actions"><button type="button" data-next>Next</button></div>
+    </section>
+
+    <section>
+      <h2>Page 3 of 3 · Tough ones</h2>
+      <fieldset>
+        <legend>Who painted "The Garden of Earthly Delights"?</legend>
+        <label><input type="radio" name="painter" value="bosch"> Hieronymus Bosch</label>
+        <label><input type="radio" name="painter" value="bruegel"> Pieter Bruegel the Elder</label>
+        <label><input type="radio" name="painter" value="vaneyck"> Jan van Eyck</label>
+        <label><input type="radio" name="painter" value="durer"> Albrecht Dürer</label>
+      </fieldset>
+      <fieldset>
+        <legend>In what year did Constantinople fall to the Ottoman Empire?</legend>
+        <label><input type="radio" name="year" value="1204"> 1204</label>
+        <label><input type="radio" name="year" value="1389"> 1389</label>
+        <label><input type="radio" name="year" value="1453"> 1453</label>
+        <label><input type="radio" name="year" value="1492"> 1492</label>
+      </fieldset>
+      <fieldset>
+        <legend>Which of these are noble gases? <span class="hint">Select all that apply.</span></legend>
+        <label><input type="checkbox" name="noble" value="argon"> Argon</label>
+        <label><input type="checkbox" name="noble" value="nitrogen"> Nitrogen</label>
+        <label><input type="checkbox" name="noble" value="xenon"> Xenon</label>
+        <label><input type="checkbox" name="noble" value="chlorine"> Chlorine</label>
+        <label><input type="checkbox" name="noble" value="radon"> Radon</label>
+      </fieldset>
+      <div class="actions"><button type="button" data-submit>Submit</button></div>
+    </section>
+
+    <section>
+      <h2>Results</h2>
+      <div class="score" id="score"></div>
+      <ul id="results"></ul>
+    </section>
+  </form>
+</main>
+
+<script>
+  // Answer key. Checkbox answers must match exactly.
+  const KEY = [
+    ["Largest planet", "radio", "planet", "jupiter"],
+    ['Symbol "Fe"', "select", "fe", "iron"],
+    ["Prime numbers", "checkbox", "prime", ["2", "11", "17"]],
+    ["Capital of Australia", "radio", "capital", "canberra"],
+    ["Longest river in South America", "select", "river", "amazon"],
+    ["Landlocked countries", "checkbox", "landlocked", ["bolivia", "mongolia", "switzerland"]],
+    ["Garden of Earthly Delights", "radio", "painter", "bosch"],
+    ["Fall of Constantinople", "radio", "year", "1453"],
+    ["Noble gases", "checkbox", "noble", ["argon", "xenon", "radon"]],
+  ];
+  const sections = [...document.querySelectorAll("section")];
+  let current = 0;
+
+  function show(i) {
+    sections.forEach((s, j) => s.classList.toggle("active", j === i));
+    document.getElementById("bar").style.width = `${(i / (sections.length - 1)) * 100}%`;
+    current = i;
+    window.scrollTo(0, 0);
+  }
+
+  function given(kind, name) {
+    if (kind === "select") return document.getElementById(name).value;
+    const picked = [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(e => e.value);
+    return kind === "radio" ? picked[0] || "" : picked;
+  }
+
+  function grade() {
+    let right = 0;
+    const list = document.getElementById("results");
+    for (const [label, kind, name, want] of KEY) {
+      const got = given(kind, name);
+      const ok = Array.isArray(want) ? [...got].sort().join() === [...want].sort().join() : got === want;
+      right += ok;
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="${ok ? "ok" : "bad"}">${ok ? "✓" : "✗"}</span> ${label}`;
+      list.append(li);
+    }
+    document.getElementById("score").textContent = `${right} / ${KEY.length}`;
+  }
+
+  document.querySelectorAll("[data-next]").forEach(b => b.onclick = () => show(current + 1));
+  document.querySelector("[data-submit]").onclick = () => { grade(); show(sections.length - 1); };
+  show(0);
+</script>
+</body>
+</html>

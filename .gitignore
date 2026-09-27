@@ -19,3 +19,6 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+
+# Demo recording scratch
+docs/.recording/

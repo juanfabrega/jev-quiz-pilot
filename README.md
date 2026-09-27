@@ -16,6 +16,18 @@
 
 Let Jev 1.13, TypeSafe's decision model, navigate a web quiz in your Chrome, so you can measure how well it does. The tool reads each question and its options from the page, asks Jev to pick, clicks the answer, and moves to the next page. Jev does not see screenshots or write text.
 
+## See it run
+
+<p align="center">
+  <img src="docs/demo.gif" alt="Jev takes a three-page general knowledge quiz. The quiz is on the left; the CLI output with each pick and its confidence is on the right. Jev scores 9 out of 9." width="900">
+</p>
+
+Try it yourself on the [demo quiz](https://juanfabrega.github.io/jev-quiz-pilot/demo/). Open it in your debugging Chrome (see [Setup](#setup)), then run:
+
+```sh
+uv run jev-quiz-pilot --submit
+```
+
 ## Acceptable use
 
 Use this on practice quizzes, your own forms, and quizzes you have permission to automate. Do not use it on graded, proctored, or certification tests. That is cheating, and most testing sites ban automation in their terms.
@@ -109,6 +121,13 @@ uv run pytest
 ```
 
 The tests load a local HTML quiz in headless Chromium. They need no API key.
+
+To refresh the images in `docs/`:
+
+```sh
+uv run python docs/render_images.py   # hero.png and social-preview.png
+uv run python docs/record_demo.py     # demo.gif; needs an API key and ffmpeg
+```
 
 ## License
 
