@@ -131,15 +131,62 @@ uv run jev-quiz-pilot --cdp-url http://localhost:9222
 | `-y`, `--yes` | Skip the setup prompts. |
 | `--cdp-url URL` | Attach to your own Chrome instead of opening a new window. See [Use your own Chrome](#use-your-own-chrome). |
 
-## How it answers
+## How it works
 
-| Field | Jev request |
+Jev never sees the page. It doesn't read screenshots or write text; it only makes typed decisions. The tool is Jev's eyes and hands: it reads each question from the page, asks Jev to pick, and clicks the answer.
+
+```mermaid
+flowchart TD
+    open["Open the quiz<br/>(new window, or your Chrome with --cdp-url)"] --> read["Read the page's fields<br/>extract.js"]
+    read --> banners["Dismiss cookie banners"]
+    banners --> ask["Ask Jev about the next field"]
+    ask --> sure{"Confident?"}
+    sure -- yes --> answer["Click the answer<br/>or the tile drawn over it"]
+    sure -- no --> you["Pause so you answer<br/>(--no-pause: use Jev's pick)"]
+    answer --> reread["Re-read the page<br/>for fields that just appeared"]
+    you --> reread
+    reread --> more{"More fields?"}
+    more -- yes --> ask
+    more -- no --> button{"Button?"}
+    button -- Next --> read
+    button -- "Submit, or none" --> stop["Stop for your review<br/>(--submit: click it)"]
+```
+
+### What Jev receives
+
+Each field becomes one request: a `state` holding the question, plus a typed question over the options. This is a real request and answer for a radio question:
+
+```jsonc
+// Request
+{
+  "model": "jev-1.13.0",
+  "state": {
+    "role": "You are a trivia champion. Pick the correct answer to each question.",
+    "assessment_question": "What is the capital of Australia?"
+  },
+  "questions": {
+    "pick": {
+      "type": "choice",
+      "instructions": "Which option is the correct answer to the assessment question?",
+      "criteria": { "opt0": "Sydney", "opt1": "Melbourne", "opt2": "Canberra", "opt3": "Perth" }
+    }
+  }
+}
+
+// Answer
+{ "pick": { "type": "choice", "choice": "opt2", "confidence": 1,
+            "probabilities": { "opt0": 0, "opt1": 0, "opt2": 1, "opt3": 0 } } }
+```
+
+The tool maps `opt2` back to "Canberra" and clicks it. Each field type uses a different request:
+
+| Field | Request to Jev |
 |---|---|
-| Radio / dropdown | One `choice` question over the options. |
-| Checkboxes | One `noul` (yes/no probability) per option, in one parallel call. The full option list goes in the state, since parallel questions can't see each other. |
-| Text | Matches an `--info` key. Anything else, such as a written answer, pauses for you. |
+| Radio buttons, dropdown | One `choice` over the options. Below `--min-confidence`, the tool pauses. |
+| Checkboxes | One `noul` (probability of yes) per option, all in one request. The option list goes in the `state`, since the questions can't see each other. Any probability between 0.35 and 0.65 pauses. |
+| Text box | One `choice` over your `--info` keys, such as `full_name`. Anything else pauses. Multi-line boxes are skipped. |
 
-If a Jev request fails, the tool pauses for you on that question.
+If a request to Jev fails, the tool pauses for you on that field.
 
 Every decision goes to `runs/<timestamp>.jsonl` with the provider, question, options, choice, and confidence. Compare it against the answer key to score Jev.
 
