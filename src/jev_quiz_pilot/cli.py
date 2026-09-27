@@ -5,7 +5,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from .banner import BANNER
 from .jev import PROVIDERS, pick_provider
@@ -126,7 +126,7 @@ def open_quiz(p, args, interactive):
     if args.url:
         browser = launch(p)
         page = browser.new_context(no_viewport=True).new_page()
-        page.goto(args.url)
+        page.goto(args.url, wait_until="domcontentloaded")  # ad-heavy pages may never finish loading
         if interactive:
             input("Log in or go to the first question if needed, then press Enter to start… ")
         return page.context.pages[-1], browser
@@ -151,7 +151,7 @@ def main():
     if sys.stdout.isatty():
         print(BANNER)
 
-    load_dotenv()  # reads the API keys from .env
+    load_dotenv(find_dotenv(usecwd=True))  # reads the API keys from .env in the folder you run from
     try:
         provider = pick_provider(args.provider)
     except ValueError as e:

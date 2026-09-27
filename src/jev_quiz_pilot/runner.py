@@ -1,5 +1,5 @@
 """
-Jev navigates a web quiz in your Chrome.
+Jev navigates a web quiz in a browser.
 
 Jev doesn't generate text or see screenshots. This module is its eyes and hands:
 it reads each question and its options from the page, asks Jev to pick, and clicks.
@@ -11,13 +11,25 @@ import time
 from pathlib import Path
 
 import requests
+from playwright.sync_api import Error as PlaywrightError
 
 from .jev import decide
 
-EXTRACT_JS = (Path(__file__).parent / "extract.js").read_text()
+HERE = Path(__file__).parent
+EXTRACT_JS = (HERE / "extract.js").read_text()
+CLICK_TARGET_JS = (HERE / "page.js").read_text()
+BANNERS_JS = (HERE / "banners.js").read_text()
 
-NEXT_RE = re.compile(r"^\s*(next|continue|forward|proceed|save (and|&) (next|continue)|submit answer|›|>|→)", re.I)
-SUBMIT_RE = re.compile(r"^\s*(submit|finish|done|send|complete|end (test|exam|assessment|quiz))", re.I)
+# The whole label must be a navigation word, so "Next (Shift + N)" on an ad's video player doesn't match.
+NEXT_RE = re.compile(
+    r"^\s*(next|continue|forward|proceed|save (and|&) (next|continue)|submit answer)"
+    r"(\s+(question|page|step|section))?\s*[›>→»]?\s*$|^\s*[›>→»]\s*$", re.I)
+SUBMIT_RE = re.compile(r"^\s*(submit|finish|done|send|complete|end)(\s+(test|exam|assessment|quiz|answers?))?\s*$", re.I)
+
+
+def field_key(f):
+    """Identifies a field by what it asks, since the page may re-render it with new ids."""
+    return f["kind"], f["question"], tuple(o["label"] for o in f.get("options", []))
 
 
 class Session:
@@ -44,8 +56,43 @@ class Session:
             return None
 
     def set_checked(self, sel, on=True):
-        """Tick or untick. force=True clicks through custom-styled labels that cover the input."""
-        (self.page.check if on else self.page.uncheck)(sel, force=True)
+        """Tick or untick with a real click, like a person would.
+
+        Many quiz sites hide the real input under a styled answer tile and never tick it, so we
+        click the tile when something covers the input, and don't check the input's state after.
+        """
+        if self.page.is_checked(sel) == on:
+            return
+        for attempt in range(2):
+            target = self.page.evaluate(CLICK_TARGET_JS, sel)
+            try:
+                self.page.click(target, timeout=3000)
+                return
+            except PlaywrightError:
+                self.dismiss_banners()  # banners often load late and cover the page; retry once
+        # Still blocked. Click from inside the page; plain forms accept this, some quiz sites ignore it.
+        self.page.eval_on_selector(sel, "e => e.click()")
+
+    def dismiss_banners(self):
+        """Click consent and cookie buttons that cover the page."""
+        if not self.page.evaluate(BANNERS_JS):
+            return
+        for b in self.page.locator("[data-jev-dismiss]").all():
+            try:
+                label = b.inner_text().strip()
+                b.click(timeout=2000)
+                print(f"   (dismissed banner: {label!r})")
+            except PlaywrightError:
+                pass
+
+    def wait_for_fields(self, timeout=10):
+        """Pages built by JavaScript can show their questions a few seconds after loading."""
+        end = time.time() + timeout
+        while True:
+            fields = self.page.evaluate(EXTRACT_JS)
+            if fields or time.time() > end:
+                return fields
+            time.sleep(0.5)
 
     def ask_human(self, question, reason="Not confident"):
         """Returns True if you answered; False means carry on without you."""
@@ -109,6 +156,9 @@ class Session:
         """Text box: fill identity fields from your info. Open-ended answers go to you."""
         if f.get("filled"):
             return
+        if f.get("multiline"):
+            print("   (skipped: multi-line text box, such as a comment or essay. Fill it yourself if needed.)")
+            return
         if not self.info:
             self.ask_human(f["question"], "Text field")
             return
@@ -143,22 +193,35 @@ class Session:
                     return False
                 b.click()
                 return False
-        print("\nNo Next/Submit button found. Stopping.")
+        print("\nNo Next or Submit button. This looks like the last page.")
         return False
+
+    def answer(self, f):
+        print(f" Q: {f['question'][:100]!r} [{f['kind']}]")
+        if f["kind"] in ("radio", "select"):
+            self.answer_single(f)
+        elif f["kind"] == "checkbox":
+            self.answer_checkboxes(f)
+        else:
+            self.answer_text(f)
 
     def run(self, max_pages=200):
         for step in range(1, max_pages + 1):
             self.page.wait_for_load_state("domcontentloaded")
             time.sleep(0.8)  # let single-page apps finish rendering
-            fields = self.page.evaluate(EXTRACT_JS)
+            fields = self.wait_for_fields()
             print(f"\n— Page {step}: {len(fields)} field(s)")
-            for f in fields:
-                print(f" Q: {f['question'][:100]!r} [{f['kind']}]")
-                if f["kind"] in ("radio", "select"):
-                    self.answer_single(f)
-                elif f["kind"] == "checkbox":
-                    self.answer_checkboxes(f)
-                else:
-                    self.answer_text(f)
+            self.dismiss_banners()
+            # Some quizzes are one long page that reveals questions as you answer, so keep
+            # checking for new ones until none appear. Answered fields are skipped by content.
+            done = set()
+            for _ in range(50):
+                if not fields:
+                    break
+                for f in fields:
+                    done.add(field_key(f))
+                    self.answer(f)
+                time.sleep(0.5)
+                fields = [f for f in self.page.evaluate(EXTRACT_JS) if field_key(f) not in done]
             if not self.click_forward():
                 break

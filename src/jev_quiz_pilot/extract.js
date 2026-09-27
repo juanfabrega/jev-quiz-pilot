@@ -34,7 +34,8 @@
       fields.push({key: 'select:' + i, kind: 'select', question: questionFor(el), sel,
         options: [...el.options].filter(o => o.value).map(o => ({label: o.text.trim(), value: o.value}))});
     } else {
-      fields.push({key: 'text:' + i, kind: 'text', question: labelFor(el), sel, filled: !!el.value});
+      fields.push({key: 'text:' + i, kind: 'text', question: labelFor(el), sel, filled: !!el.value,
+        multiline: el.tagName === 'TEXTAREA'});
     }
   });
   return fields;
