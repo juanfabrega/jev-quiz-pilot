@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<body>
+  <form>
+    <label for="name">Full name</label>
+    <input id="name" type="text">
+
+    <fieldset>
+      <legend>What color is the sky?</legend>
+      <label><input type="radio" name="sky" value="blue"> Blue</label>
+      <label><input type="radio" name="sky" value="green"> Green</label>
+    </fieldset>
+
+    <div role="group" aria-label="Which are prime?">
+      <input type="checkbox" id="p2" name="prime"><label for="p2">2</label>
+      <input type="checkbox" id="p4" name="prime"><label for="p4">4</label>
+      <input type="checkbox" id="p5" name="prime"><label for="p5">5</label>
+    </div>
+
+    <label for="cap">Capital of France</label>
+    <select id="cap">
+      <option value="">Choose…</option>
+      <option value="paris">Paris</option>
+      <option value="rome">Rome</option>
+    </select>
+
+    <input type="hidden" name="token" value="x">
+    <input type="text" style="display:none" name="invisible">
+    <button type="button">Next</button>
+  </form>
+</body>
+</html>

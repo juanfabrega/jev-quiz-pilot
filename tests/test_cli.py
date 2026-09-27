@@ -1,0 +1,25 @@
+import argparse
+
+import pytest
+
+from jev_quiz_pilot.cli import build_parser, name_parts, parse_info, rerun_command
+
+
+def test_parse_info():
+    assert parse_info(["email=a@b.c", "full_name=Jane Q Doe"]) == {"email": "a@b.c", "full_name": "Jane Q Doe"}
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_info(["email"])
+
+
+def test_name_parts():
+    assert name_parts("Jane Q Doe") == {"first_name": "Jane", "last_name": "Q Doe"}
+    assert name_parts("Cher") == {"first_name": "Cher"}
+
+
+def test_rerun_command_round_trips():
+    args = build_parser().parse_args(["--role", "You are a CPA.", "--submit"])
+    info = {"full_name": "Jane Doe", "email": "jane@example.com"}
+    assert rerun_command(args, info) == (
+        "jev-quiz-pilot --yes --role 'You are a CPA.' "
+        "--info 'full_name=Jane Doe' --info email=jane@example.com --submit"
+    )

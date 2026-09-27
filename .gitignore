@@ -1,0 +1,21 @@
+# Secrets: only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# Run logs (quiz questions, your answers)
+runs/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
