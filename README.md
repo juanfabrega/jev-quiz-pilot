@@ -18,14 +18,30 @@ Let Jev 1.13, TypeSafe's decision model, navigate a web quiz in a browser, so yo
 
 ## See it run
 
+### A multi-page quiz
+
+Jev takes our three-page [demo quiz](https://juanfabrega.github.io/jev-quiz-pilot/demo/): a name field, radio buttons, dropdowns, and "select all" checkboxes. It scores 9 out of 9.
+
 <p align="center">
   <img src="docs/demo.gif" alt="Jev takes a three-page general knowledge quiz. The quiz is on the left; the CLI output with each pick and its confidence is on the right. Jev scores 9 out of 9." width="900">
 </p>
 
-Try it yourself on the [demo quiz](https://juanfabrega.github.io/jev-quiz-pilot/demo/). After [Setup](#setup), run:
+Try it yourself. After [Setup](#setup), run:
 
 ```sh
 uv run jev-quiz-pilot https://juanfabrega.github.io/jev-quiz-pilot/demo/ --submit
+```
+
+### A real-world site
+
+Jev takes a 35-question [BuzzFeed trivia quiz](https://www.buzzfeed.com/audreyworboys/general-knowledge-trivia-quiz-71): one long page with ads and a cookie banner. The tool dismisses the banner, clicks each answer tile, and skips the comment box. Jev scores 31 out of 35.
+
+<p align="center">
+  <img src="docs/demo-buzzfeed.gif" alt="Jev takes a 35-question BuzzFeed trivia quiz on one long scrolling page. The page is on the left; the CLI output is on the right. BuzzFeed's result card shows 31 out of 35 correct." width="800">
+</p>
+
+```sh
+uv run jev-quiz-pilot https://www.buzzfeed.com/audreyworboys/general-knowledge-trivia-quiz-71 --no-pause
 ```
 
 ## Acceptable use
@@ -147,7 +163,7 @@ To refresh the images in `docs/`:
 
 ```sh
 uv run python docs/render_images.py   # hero.png and social-preview.png
-uv run python docs/record_demo.py     # demo.gif; needs an API key and ffmpeg
+uv run python docs/record_demo.py     # demo.gif and demo-buzzfeed.gif; needs an API key and ffmpeg
 ```
 
 ## License
