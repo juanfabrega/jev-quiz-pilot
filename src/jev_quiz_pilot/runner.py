@@ -20,6 +20,8 @@ EXTRACT_JS = (HERE / "extract.js").read_text()
 CLICK_TARGET_JS = (HERE / "page.js").read_text()
 BANNERS_JS = (HERE / "banners.js").read_text()
 BLOCK_HTML_JS = (HERE / "blockhtml.js").read_text()
+# A tile has no checked state, so compare it and its surroundings before and after the click.
+TILE_STATE_JS = "s => { const e = document.querySelector(s); return e ? e.outerHTML + e.parentElement.outerHTML : '' }"
 
 # A question block with more text pieces than this likely holds site text too, so Jev picks the pieces.
 NOISY_PIECES = 6
@@ -32,6 +34,16 @@ NEXT_RE = re.compile(
 SUBMIT_RE = re.compile(
     rf"^\s*(submit|finish|done|send|complete|end)(\s+(my|your|all))?(\s+(test|exam|assessment|quiz|answers?))?"
     rf"\s*[!.]?\s*{ARROW}?\s*$", re.I)
+
+# Buttons that run the quiz rather than answer it. A group of tiles holding one is not a question.
+CONTROL_RE = re.compile(r"^\s*(start|begin|restart|retry|try again|play again|take (it|the quiz) again|share|"
+                        rf"finish|see (my )?results?|show (my )?results?)(\s+(the\s+)?quiz)?\s*[!.]?\s*{ARROW}?\s*$", re.I)
+
+
+def is_control_group(f):
+    return any(o.get("tile") for o in f.get("options", [])) and any(
+        NEXT_RE.search(o["label"]) or SUBMIT_RE.search(o["label"]) or CONTROL_RE.search(o["label"])
+        for o in f["options"])
 
 
 def field_keys(f):
@@ -155,14 +167,20 @@ class Session:
                 self.record(**entry)  # you pick, so no click to check
             if self.ask_human(f["question"]):
                 return
+        option = f["options"][idx]
         if f["kind"] == "select":
-            self.page.select_option(f["sel"], f["options"][idx]["value"])
-            checked = self.page.input_value(f["sel"]) == f["options"][idx]["value"]
+            self.page.select_option(f["sel"], option["value"])
+            checked = self.page.input_value(f["sel"]) == option["value"]
+        elif option.get("tile"):
+            before = self.page.evaluate(TILE_STATE_JS, option["sel"])
+            self.page.click(option["sel"], timeout=5000)
+            time.sleep(0.3)
+            checked = self.page.evaluate(TILE_STATE_JS, option["sel"]) != before
         else:
             self.set_checked(f["options"][idx]["sel"])
             checked = self.page.is_checked(f["options"][idx]["sel"])
-        # Whether the page's input took the pick. A site that styles tiles over hidden inputs may never
-        # tick them, so False flags a click to check, not a certain failure.
+        # Whether the page took the pick: the input is ticked, or a tile changed. A site that styles tiles
+        # over hidden inputs may never tick them, so False flags a click to check, not a certain failure.
         self.record(**entry, checked=checked)
 
     def answer_checkboxes(self, f):
@@ -241,6 +259,9 @@ class Session:
     def quiz_fields(self, fields):
         """Jev decides which fields belong to the quiz, so search boxes, language pickers, quiz settings,
         and comment forms stay untouched. If the request fails, all fields count, as before."""
+        fields = [f for f in fields if not is_control_group(f)]
+        if not fields:
+            return fields
         described = [f"{f['kind']} field. Question or label: {f['question'][:300]!r}."
                      + (f" Options: {[o['label'][:60] for o in f['options'][:8]]}." if f.get("options") else "")
                      + f" Nearby text: {f.get('context', '')!r}"
@@ -249,7 +270,8 @@ class Session:
             "type": "noul",
             "instructions": "Is this field part of the quiz or form the person came to fill in: one of its "
                             "questions, or a detail it asks about the person? Say no for site search, navigation, "
-                            "language or translation, quiz settings, newsletter sign-up, login, and comments. "
+                            "language or translation, quiz settings, newsletter sign-up, login, comments, and buttons that "
+                            "control the quiz, such as start, finish, retry, or share. "
                             f"Field: {d}",
         } for i, d in enumerate(described)})
         try:

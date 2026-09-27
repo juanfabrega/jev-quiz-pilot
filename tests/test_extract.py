@@ -77,3 +77,16 @@ def test_question_keeps_every_visible_piece_in_order(block_fields):
 
 def test_formula_keeps_fractions_and_powers(block_fields):
     assert block_fields[2]["question"] == "3. Solve y=(1)/(4)x^(2) for y."
+
+
+def test_aria_radios_are_read_like_inputs(extract):
+    [f] = extract("quiz_widgets.html")
+    assert (f["kind"], f["question"]) == ("radio", "What color is the sky?")
+    assert [o["label"] for o in f["options"]] == ["Blue", "Green"]
+
+
+def test_clickable_tiles_become_a_choice_outside_nav(extract):
+    [f] = extract("quiz_tiles.html")
+    assert f["question"] == "How many rings are on the Olympic flag?"
+    assert [o["label"] for o in f["options"]] == ["4", "5", "6"]
+    assert all(o["tile"] for o in f["options"])

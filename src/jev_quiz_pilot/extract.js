@@ -32,7 +32,8 @@
     }
     return e.children.length ? kids.join('') : e.textContent.trim();
   };
-  const inputsIn = el => el.querySelectorAll('input, select, textarea');
+  // Everything that answers a question: form inputs, ARIA radios and checkboxes, and answer tiles.
+  const inputsIn = el => el.querySelectorAll('input, select, textarea, [role=radio], [role=checkbox], [data-jev-tile]');
   // Most quiz pages don't name the question in markup. Find its block instead: the largest ancestor
   // that holds this group's inputs and no others. Then split the block's visible text into pieces,
   // one per block-level element (a table stays whole), leaving out the options and any links or buttons.
@@ -68,21 +69,26 @@
             pieces: [...pieces.values()].map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 40).map(s => s.slice(0, 1000))};
   };
   document.querySelectorAll('[data-jev-block]').forEach(e => e.removeAttribute('data-jev-block'));
+  // An id that stays with the element across reads, so a redrawn label doesn't look like a new field.
+  const idOf = el => {
+    if (!el.hasAttribute('data-jev')) el.setAttribute('data-jev', window.__jevIds = (window.__jevIds || 0) + 1);
+    return el.getAttribute('data-jev');
+  };
   const fields = [], groups = {};
+  const addOption = (key, kind, el, option) => {
+    let f = fields.find(x => x.key === key);
+    if (!f) { f = {key, kind, question: namedQuestion(el), options: []}; fields.push(f); groups[key] = []; }
+    f.options.push(option);
+    groups[key].push(el);
+  };
   document.querySelectorAll('input, select, textarea').forEach(el => {
     if (!vis(el) || el.disabled) return;
     const t = (el.type || '').toLowerCase();
     if (['hidden','submit','button','reset','image','file','password'].includes(t)) return;
-    // An id that stays with the element across reads, so a redrawn label doesn't look like a new field.
-    if (!el.hasAttribute('data-jev')) el.setAttribute('data-jev', window.__jevIds = (window.__jevIds || 0) + 1);
-    const id = el.getAttribute('data-jev');
+    const id = idOf(el);
     const sel = `[data-jev="${id}"]`;
     if (t === 'radio' || t === 'checkbox') {
-      const key = t + ':' + (el.name || id);
-      let f = fields.find(x => x.key === key);
-      if (!f) { f = {key, kind: t, question: namedQuestion(el), options: []}; fields.push(f); groups[key] = []; }
-      f.options.push({label: labelFor(el), sel});
-      groups[key].push(el);
+      addOption(t + ':' + (el.name || id), t, el, {label: labelFor(el), sel});
     } else if (el.tagName === 'SELECT') {
       fields.push({key: 'select:' + id, kind: 'select', question: namedQuestion(el) || labelFor(el), sel,
         options: [...el.options].filter(o => o.value).map(o => ({label: o.text.trim(), value: o.value}))});
@@ -91,6 +97,39 @@
         multiline: el.tagName === 'TEXTAREA'});
     }
   });
+  // ARIA radios and checkboxes, e.g. Google Forms. They act like inputs, so they're read the same way.
+  document.querySelectorAll('[role=radio], [role=checkbox]').forEach(el => {
+    if (!vis(el) || el.getAttribute('aria-disabled') === 'true' || el.querySelector('input')) return;
+    const kind = el.getAttribute('role'), id = idOf(el);
+    const grp = el.closest('[role=radiogroup], [role=group], [role=listbox]') || el.parentElement;
+    addOption(`aria-${kind}:${idOf(grp)}`, kind, el,
+              {label: el.getAttribute('aria-label') || txt(el), sel: `[data-jev="${id}"]`});
+  });
+  // Answer tiles: sibling elements styled as clickable, with short text and no inputs, e.g. JetPunk.
+  // Only on pages without radio or checkbox groups, since menus and buttons look the same. Jev then
+  // decides which groups are quiz questions.
+  if (!fields.some(f => f.kind === 'radio' || f.kind === 'checkbox')) {
+    const pointer = e => e && getComputedStyle(e).cursor === 'pointer';
+    const tiles = [...document.body.querySelectorAll('div, li, span, button, a, label')].filter(e => {
+      if (!vis(e) || !pointer(e) || pointer(e.parentElement) || e.querySelector('input, select, textarea')) return false;
+      if (e.closest('nav, header, footer, [role=navigation], [role=banner], [role=dialog]')) return false;
+      if (e.tagName === 'A' && e.getAttribute('href') && !/^(#|javascript:)/.test(e.getAttribute('href'))) return false;
+      const t = txt(e); return t && t.length <= 150;
+    });
+    const byGroup = new Map();
+    tiles.forEach(e => {
+      let g = e.parentElement;  // the nearest ancestor holding another tile
+      while (g !== document.body && !tiles.some(o => o !== e && g.contains(o))) g = g.parentElement;
+      if (g !== document.body) byGroup.set(g, [...(byGroup.get(g) || []), e]);
+    });
+    byGroup.forEach((members, g) => {
+      if (members.length < 2 || members.length > 8) return;
+      members.forEach(e => {
+        e.setAttribute('data-jev-tile', '');
+        addOption('tile:' + idOf(g), 'radio', e, {label: txt(e), sel: `[data-jev="${idOf(e)}"]`, tile: true});
+      });
+    });
+  }
   fields.forEach((f, i) => {
     if (f.question || !groups[f.key]) return;
     if (groups[f.key].length > 1) Object.assign(f, questionBlock(groups[f.key], i));
