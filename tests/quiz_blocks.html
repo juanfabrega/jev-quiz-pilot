@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<body>
+  <!-- Real-world markup: no fieldset or ARIA group, so the question has to come from the block around the options. -->
+  <div class="quiz">
+    <div class="q">
+      <h3>1. Which chess piece is of the lowest relative value?</h3>
+      <div class="answers">
+        <div><input type="radio" name="q1" id="a1"><label for="a1">Knight</label></div>
+        <div><input type="radio" name="q1" id="a2"><label for="a2">Pawn</label></div>
+      </div>
+      <div class="explanation" style="display:none">The pawn is worth one point.</div>
+      <a href="#">Report a bug</a>
+    </div>
+    <div class="q">
+      <p>2. Prices are in the table below.</p>
+      <table><tr><td>Trees</td><td>$25</td></tr></table>
+      <p>How much do <b>two</b> trees cost?</p>
+      <label><input type="radio" name="q2"> $25</label>
+      <label><input type="radio" name="q2"> $50</label>
+      <button type="button">Submit</button>
+    </div>
+    <div class="q">
+      <p>3. Solve <math><mi>y</mi><mo>=</mo><mfrac><mn>1</mn><mn>4</mn></mfrac><msup><mi>x</mi><mn>2</mn></msup></math> for y.</p>
+      <label><input type="radio" name="q3"> A</label>
+      <label><input type="radio" name="q3"> B</label>
+    </div>
+  </div>
+</body>
+</html>

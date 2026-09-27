@@ -19,6 +19,10 @@ HERE = Path(__file__).parent
 EXTRACT_JS = (HERE / "extract.js").read_text()
 CLICK_TARGET_JS = (HERE / "page.js").read_text()
 BANNERS_JS = (HERE / "banners.js").read_text()
+BLOCK_HTML_JS = (HERE / "blockhtml.js").read_text()
+
+# A question block with more text pieces than this likely holds site text too, so Jev picks the pieces.
+NOISY_PIECES = 6
 
 # The whole label must be a navigation word, so "Next (Shift + N)" on an ad's video player doesn't match.
 NEXT_RE = re.compile(
@@ -103,11 +107,31 @@ class Session:
         input(f"   ⚠ {reason} on: {question!r}\n   Answer it yourself in the browser, then press Enter… ")
         return True
 
+    def question_text(self, f):
+        """The question to ask Jev about. A noisy block goes to Jev one piece at a time, to keep only the question."""
+        pieces = f.get("pieces") or []
+        if len(pieces) <= NOISY_PIECES:
+            return f["question"]
+        state = {"answer_options": [o["label"] for o in f["options"]],
+                 "question_block_html": self.page.evaluate(BLOCK_HTML_JS, f["block"])}
+        answers = self.ask(state, {f"p{i}": {
+            "type": "noul",
+            "instructions": "Is this text part of the quiz question (including any passage, table, or formula it "
+                            f"needs), rather than an answer option, explanation, button, or site text? Text: {p!r}",
+        } for i, p in enumerate(pieces)})
+        try:
+            kept = [p for i, p in enumerate(pieces) if answers[f"p{i}"]["noul"] >= 0.5]
+        except (TypeError, KeyError):
+            return f["question"]
+        print(f"   (question block had {len(pieces)} text pieces; Jev kept {len(kept)})")
+        return " ".join(kept) or f["question"]
+
     def answer_single(self, f):
         """Radio group or dropdown: one Choice question over the visible options."""
         labels = [o["label"] or f"option {i}" for i, o in enumerate(f["options"])]
         criteria = {f"opt{i}": label for i, label in enumerate(labels)}
-        state = {"role": self.role, "assessment_question": f["question"]}
+        question = self.question_text(f)
+        state = {"role": self.role, "assessment_question": question}
         answers = self.ask(state, {"pick": {
             "type": "choice",
             "instructions": "Which option is the correct answer to the assessment question?",
@@ -119,7 +143,7 @@ class Session:
             return
         idx = int(a["choice"][3:])
         print(f"   → {labels[idx]!r} (confidence {a['confidence']:.2f})")
-        self.record(question=f["question"], kind=f["kind"], options=labels,
+        self.record(question=question, kind=f["kind"], options=labels,
                     choice=labels[idx], confidence=a["confidence"])
         if a["confidence"] < self.min_confidence and self.ask_human(f["question"]):
             return
@@ -134,7 +158,8 @@ class Session:
         Each question can't see the others, so the full option list goes in the state.
         """
         labels = [o["label"] for o in f["options"]]
-        state = {"role": self.role, "assessment_question": f["question"], "all_options": labels}
+        question = self.question_text(f)
+        state = {"role": self.role, "assessment_question": question, "all_options": labels}
         qs = {f"opt{i}": {"type": "noul",
                           "instructions": f"Is this option a correct answer to the question: {label!r}?"}
               for i, label in enumerate(labels)}
@@ -146,7 +171,7 @@ class Session:
             return
         for label, p in zip(labels, probs):
             print(f"   {'☑' if p >= 0.5 else '☐'} {label!r} (p={p:.2f})")
-        self.record(question=f["question"], kind="checkbox", options=labels, probs=probs)
+        self.record(question=question, kind="checkbox", options=labels, probs=probs)
         if any(0.35 < p < 0.65 for p in probs) and self.ask_human(f["question"]):
             return
         for o, p in zip(f["options"], probs):
