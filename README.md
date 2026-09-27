@@ -1,5 +1,9 @@
 # jev-quiz-pilot
 
+<p align="center">
+  <img src="docs/hero.png" alt="Terminal running jev-quiz-pilot, showing the JEV QUIZ PILOT banner in block letters" width="640">
+</p>
+
 Let Jev 1.13, TypeSafe's decision model, navigate a web quiz in your Chrome, so you can measure how well it does. The tool reads each question and its options from the page, asks Jev to pick, clicks the answer, and moves to the next page. Jev does not see screenshots or write text.
 
 ## Acceptable use
