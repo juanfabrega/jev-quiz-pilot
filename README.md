@@ -134,7 +134,7 @@ uv run jev-quiz-pilot --cdp-url http://localhost:9222
 ## How it works
 
 <p align="center">
-  <img src="docs/how-it-works.png" alt="Diagram in three columns. Left: a quiz page asking the capital of Australia, with Canberra selected, a dismissed cookie banner, and a Next button. Middle: jev-quiz-pilot's six steps: read the fields, clear banners, ask Jev, check confidence (0.6 or more clicks, less pauses), click the answer, repeat on the next page. Right: Jev 1.13 receives the question as a typed choice request and answers opt2, Canberra, with probability 1.00. Arrows: the tool reads the page, asks Jev, gets the answer, and clicks." width="900">
+  <img src="docs/how-it-works.png" alt="Diagram in three columns. Left: a quiz page asking the capital of Australia, with Canberra selected, a site search box and language picker marked skipped, a dismissed cookie banner, and a Next button. Middle: jev-quiz-pilot's seven steps: read the fields, clear banners, keep only the quiz (0.65 or more answers, below 0.35 skips, else asks you), ask Jev, check confidence (0.6 or more clicks, less pauses), click the answer, repeat on the next page. Right: Jev 1.13 rates each field as part of the quiz (search 0.06, language 0.05, the question 0.98), then receives the question as a typed choice request and answers opt2, Canberra, with probability 1.00. Arrows: the tool reads the page, checks fields with Jev, asks Jev, gets the answer, and clicks." width="900">
 </p>
 
 Jev never sees the page. It doesn't read screenshots or write text; it only makes typed decisions. The tool is Jev's eyes and hands: it reads each question from the page, asks Jev to pick, and clicks the answer.

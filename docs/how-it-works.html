@@ -21,7 +21,7 @@
   header p { margin:0; color:var(--muted); font-size:17px; }
   header b { color:var(--text); font-weight:600; }
 
-  .cols { display:grid; grid-template-columns: 330px 1fr 330px; gap:88px; align-items:start; position:relative; z-index:1; }
+  .cols { display:grid; grid-template-columns: 330px minmax(0, 1fr) 330px; gap:88px; align-items:start; position:relative; z-index:1; }
   .col-title { font:700 13px var(--mono); letter-spacing:1.6px; text-transform:uppercase; margin:0 0 4px; }
   .col-sub { color:var(--muted); font-size:14px; margin:0 0 14px; }
 
@@ -36,20 +36,25 @@
   .opt.pick { background:#6fbf3f; border-color:#6fbf3f; color:#0d2b05; font-weight:700; }
   .banner { margin-top:12px; border:1px dashed #b0b8c1; border-radius:8px; padding:8px 10px; font-size:12px; color:#8b949e; display:flex; justify-content:space-between; align-items:center; text-decoration:line-through; }
   .banner span { background:#b8b3f5; color:#fff; border-radius:12px; padding:3px 9px; font-weight:700; font-size:10px; text-decoration:none; }
+  .sitebar { display:flex; gap:8px; align-items:center; padding:8px 12px; border-bottom:1px dashed #b0b8c1; font-size:12px; color:#8b949e; }
+  .sitebar .ctl { border:1px solid #d1d9e0; border-radius:6px; padding:3px 8px; text-decoration:line-through; white-space:nowrap; }
+  .sitebar .ctl:first-child { flex:1; }
+  .sitebar .skip { background:#b8b3f5; color:#fff; border-radius:12px; padding:3px 9px; font-weight:700; font-size:10px; }
   .next { margin-top:12px; display:flex; justify-content:flex-end; }
   .next span { background:#0969da; color:#fff; border-radius:6px; padding:7px 18px; font-weight:700; font-size:13px; }
 
   /* Tool steps */
   .steps { position:relative; }
-  .step { display:flex; gap:14px; align-items:flex-start; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
+  .step { display:flex; gap:14px; align-items:flex-start; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 14px; margin-bottom:11px; }
   .num { flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font:700 14px var(--mono); color:var(--bg); }
   .step h3 { margin:0 0 2px; font-size:16px; }
   .step p { margin:0; color:var(--muted); font-size:13.5px; line-height:1.4; }
   .step code { font-family:var(--mono); font-size:12.5px; color:var(--text); background:#21262d; padding:1px 5px; border-radius:4px; }
-  .gate { display:flex; gap:8px; margin-top:6px; }
-  .gate span { font:600 12px var(--mono); padding:3px 8px; border-radius:10px; }
+  .gate { display:flex; gap:6px; margin-top:6px; }
+  .gate span { font:600 12px var(--mono); padding:3px 8px; border-radius:10px; white-space:nowrap; }
   .ok { color:var(--green); background:rgba(63,185,80,.14); }
   .warn { color:var(--amber); background:rgba(210,153,34,.14); }
+  .skip-g { color:var(--muted); background:rgba(139,148,158,.14); }
 
   /* Jev */
   .jev { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
@@ -62,6 +67,8 @@
   .bar .fill { height:100%; background:var(--green); border-radius:5px; }
   .bar .v { font:12px var(--mono); color:var(--muted); text-align:right; }
   .bar.win { color:var(--text); font-weight:700; } .bar.win .v { color:var(--green); }
+  .fc .bar { grid-template-columns:150px 1fr 40px; }
+  .fc .bar.no .v { color:var(--muted); }
   .conf { margin-top:10px; font:600 13px var(--mono); color:var(--green); }
   .never { margin-top:14px; color:var(--muted); font-size:13px; line-height:1.5; }
   .never b { color:var(--text); }
@@ -86,6 +93,7 @@
       <div class="col-sub">Any site, in a real browser</div>
       <div class="browser" id="page">
         <div class="chrome"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><div class="url">quiz.example.com</div></div>
+        <div class="sitebar" id="site"><span class="ctl">🔍 Search</span><span class="ctl">Language: English ▾</span><span class="skip">SKIPPED</span></div>
         <div class="page">
           <div class="q" id="question">What is the capital of Australia?</div>
           <div class="opt">Sydney</div>
@@ -103,12 +111,13 @@
       <div class="col-title" style="color:var(--blue)">jev-quiz-pilot</div>
       <div class="col-sub">Reads the page, asks Jev, clicks</div>
       <div class="steps">
-        <div class="step" id="s1"><div class="num" style="background:var(--blue)">1</div><div><h3>Read the fields</h3><p><code>extract.js</code> finds each question, its options, and their inputs.</p></div></div>
+        <div class="step" id="s1"><div class="num" style="background:var(--blue)">1</div><div><h3>Read the fields</h3><p><code>extract.js</code> finds each question, its options, and what to click: an input, an ARIA widget, or a clickable tile.</p></div></div>
         <div class="step" id="s2"><div class="num" style="background:var(--blue)">2</div><div><h3>Clear banners</h3><p>Clicks "I understand" or "Accept all" when a pop-up covers the quiz.</p></div></div>
-        <div class="step" id="s3"><div class="num" style="background:var(--purple)">3</div><div><h3>Ask Jev</h3><p>One typed request per field: a <code>choice</code> for radios and dropdowns, a <code>noul</code> per checkbox.</p></div></div>
-        <div class="step" id="s4"><div class="num" style="background:var(--green)">4</div><div><h3>Check confidence</h3><p>Sure enough? Click. Not sure? You answer.</p><div class="gate"><span class="ok">≥ 0.6 → click</span><span class="warn">&lt; 0.6 → pause</span></div></div></div>
-        <div class="step" id="s5"><div class="num" style="background:var(--coral)">5</div><div><h3>Click the answer</h3><p>The input, or the styled tile drawn over it.</p></div></div>
-        <div class="step" id="s6"><div class="num" style="background:var(--muted)">6</div><div><h3>Repeat</h3><p>Answer fields that appear, then click Next and start again. Stops before Submit.</p></div></div>
+        <div class="step" id="s3"><div class="num" style="background:var(--purple)">3</div><div style="min-width:0"><h3>Keep only the quiz</h3><p>Jev rates each field: part of the quiz? Search boxes and language pickers are left alone.</p><div class="gate"><span class="ok">≥ 0.65 answer</span><span class="warn">else ask</span><span class="skip-g">&lt; 0.35 skip</span></div></div></div>
+        <div class="step" id="s4"><div class="num" style="background:var(--purple)">4</div><div><h3>Ask Jev</h3><p>A <code>choice</code> for radios, dropdowns, and tiles; a <code>noul</code> per checkbox. On a busy page, Jev first picks which text is the question.</p></div></div>
+        <div class="step" id="s5"><div class="num" style="background:var(--green)">5</div><div><h3>Check confidence</h3><p>Sure enough? Click. Not sure? You answer.</p><div class="gate"><span class="ok">≥ 0.6 → click</span><span class="warn">&lt; 0.6 → pause</span></div></div></div>
+        <div class="step" id="s6"><div class="num" style="background:var(--coral)">6</div><div><h3>Click the answer</h3><p>The input, the tile drawn over it, or the answer tile. Logs whether the click registered.</p></div></div>
+        <div class="step" id="s7"><div class="num" style="background:var(--muted)">7</div><div><h3>Repeat</h3><p>Answer fields that appear, then click Next. Stops before Submit, or on a page with no quiz questions.</p></div></div>
       </div>
     </div>
 
@@ -116,6 +125,12 @@
     <div>
       <div class="col-title" style="color:var(--purple)">Jev 1.13</div>
       <div class="col-sub">TypeSafe, direct or via OpenRouter</div>
+      <div class="jev fc" id="fc">
+        <div class="label">Field check · one noul per field</div>
+        <div class="bar no"><span>Search quizzes</span><div class="track"><div class="fill" style="width:6%"></div></div><span class="v">0.06</span></div>
+        <div class="bar no"><span>Language</span><div class="track"><div class="fill" style="width:5%"></div></div><span class="v">0.05</span></div>
+        <div class="bar win"><span>Capital of Australia?</span><div class="track"><div class="fill" style="width:98%"></div></div><span class="v">0.98</span></div>
+      </div>
       <div class="jev" id="req">
         <div class="label">Request</div>
 <pre><span class="k">"state"</span>: { <span class="k">"assessment_question"</span>:
@@ -138,7 +153,7 @@
   </div>
 
   <svg id="arrows"></svg>
-  <footer>A real request and answer from Jev 1.13 · every decision is logged to runs/&lt;timestamp&gt;.jsonl</footer>
+  <footer>Real requests and answers from Jev 1.13 · every decision is logged to runs/&lt;timestamp&gt;.jsonl</footer>
 </div>
 
 <script>
@@ -157,18 +172,19 @@
     arrows.push(`<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}" stroke="${color}" stroke-width="2.5" fill="none" marker-end="url(#${id})"/>`
       + `<text class="tag" x="${mx}" y="${my - 8}" text-anchor="middle" fill="${color}">${label}</text>`);
   }
-  const page = box('question'), picked = box('picked'), s1 = box('s1'), s3 = box('s3'), s4 = box('s4'), s5 = box('s5'), s6 = box('s6');
-  const req = box('req'), ans = box('ans'), banner = box('banner');
+  const page = box('question'), picked = box('picked'), s1 = box('s1'), s3 = box('s3'), s4 = box('s4'), s5 = box('s5'), s6 = box('s6'), s7 = box('s7');
+  const fc = box('fc'), req = box('req'), ans = box('ans');
   const pageR = box('page').r;
   arrow(pageR + 4, page.cy, s1.l - 6, s1.cy, css('--blue'), 'reads');
-  arrow(s3.r + 4, s3.cy, req.l - 6, req.cy, css('--purple'), 'asks');
-  arrow(ans.l - 4, ans.cy, s4.r + 6, s4.cy, css('--green'), 'answers');
-  arrow(s5.l - 4, s5.cy, pageR + 6, picked.cy, css('--coral'), 'clicks');
-  // Next page: left from step 6, then up into the bottom of the Next button, clear of the "clicks" arrow.
+  arrow(s3.r + 4, s3.cy, fc.l - 6, fc.cy, css('--purple'), 'checks');
+  arrow(s4.r + 4, s4.cy, req.l - 6, req.cy, css('--purple'), 'asks');
+  arrow(ans.l - 4, ans.cy, s5.r + 6, s5.cy, css('--green'), 'answers');
+  arrow(s6.l - 4, s6.cy, pageR + 6, picked.cy, css('--coral'), 'clicks');
+  // Next page: left from step 7, then up into the bottom of the Next button, clear of the "clicks" arrow.
   const nx = box('next'), nxc = (nx.l + nx.r) / 2, grey = css('--muted');
   defs += `<marker id="hn" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="${grey}"/></marker>`;
-  arrows.push(`<path d="M${s6.l - 4},${s6.cy} H${nxc + 24} Q${nxc},${s6.cy} ${nxc},${s6.cy - 24} V${nx.b + 8}" stroke="${grey}" stroke-width="2.5" fill="none" marker-end="url(#hn)"/>`
-    + `<text class="tag" x="${(s6.l + nxc) / 2 + 12}" y="${s6.cy - 10}" text-anchor="middle" fill="${grey}">next page</text>`);
+  arrows.push(`<path d="M${s7.l - 4},${s7.cy} H${nxc + 24} Q${nxc},${s7.cy} ${nxc},${s7.cy - 24} V${nx.b + 8}" stroke="${grey}" stroke-width="2.5" fill="none" marker-end="url(#hn)"/>`
+    + `<text class="tag" x="${(s7.l + nxc) / 2 + 12}" y="${s7.cy - 10}" text-anchor="middle" fill="${grey}">next page</text>`);
   svg.innerHTML = defs + '</defs>' + arrows.join('');
 </script>
 </body>
