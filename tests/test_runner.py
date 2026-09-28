@@ -40,3 +40,17 @@ def test_answer_tiles_are_a_question():
 def test_a_next_button_beside_the_answers_is_dropped():
     f = without_controls(tiles("enemy", "actor", "builder", "Next"))
     assert [o["label"] for o in f["options"]] == ["enemy", "actor", "builder"]
+
+
+def test_a_control_word_styled_like_the_answers_is_an_answer():
+    f = tiles("publish", "restrict", "correct", "begin")
+    for o in f["options"]:
+        o["look"] = "A choice choice-"
+    assert without_controls(f) == f
+
+
+def test_a_next_button_styled_unlike_the_answers_is_dropped():
+    f = tiles("enemy", "actor", "builder", "Next")
+    for o in f["options"]:
+        o["look"] = "DIV question-gstage__next" if o["label"] == "Next" else "A choice choice-"
+    assert [o["label"] for o in without_controls(f)["options"]] == ["enemy", "actor", "builder"]

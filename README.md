@@ -171,7 +171,7 @@ Before answering, Jev also helps the tool read the page:
 | Decision | Request to Jev |
 |---|---|
 | Is this field part of the quiz? | One `noul` per field on the page, given its question, options, and nearby text. Below 0.35 the field is skipped, such as a site search box or language picker. Between 0.35 and 0.65, the tool pauses. |
-| Which text is the question? | Only when the block around the options holds more than 6 pieces of text. One `noul` per piece, given the block's HTML; the tool keeps the pieces Jev marks as the question. Otherwise the tool uses the block's text without the options. |
+| Which text is the question? | Only when the block around the options holds more than 4 pieces of text. One `noul` per piece, given the block's HTML; the tool keeps the pieces Jev marks as the question. Otherwise the tool uses the block's text without the options. |
 
 Each field type uses a different request:
 
@@ -190,7 +190,7 @@ Every decision goes to `runs/<timestamp>.jsonl` with the provider, question, opt
 - OpenRouter's decisions API is in alpha. It may change and break this tool.
 - Field detection is generic. On unusual form builders, question text may come out garbled.
 - The tool finds Submit by its label. If a quiz's last button reads "Next", as on W3Schools, the tool clicks it and submits.
-- Timed quizzes may run out. Each question takes up to three Jev requests, which can outlast a 10-second timer.
+- Short timers may run out. Each question takes up to three Jev requests, a few seconds in all. Merriam-Webster's 10-second questions fit.
 - Quizzes inside an iframe from another site are not read.
 - Jev sees only text. It gets passages, tables, and formulas in the question's block, but not images.
 - Cost on OpenRouter: $0.042 per million input tokens, $0 output. See TypeSafe's site for direct pricing.

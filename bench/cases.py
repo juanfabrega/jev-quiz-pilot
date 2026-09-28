@@ -67,8 +67,8 @@ CASES = {
         block="fieldset[class*=question__]", question="legend", option="[class*=answerText]",
     ),
     # Answer tiles are links with #fragments. 10 s per question, questions drawn at random. Needs Start.
-    # Fails today: three Jev calls per question likely outlast the timer, and the previous question
-    # stays in the page after Next, so it gets answered again.
+    # The previous question stays in the page after Next, scrolled out of view. Progress, timer, and
+    # score text sit in the question block.
     "merriam-webster": dict(
         url="https://www.merriam-webster.com/games/vocabulary-quiz", start=["START THE QUIZ"],
         total=10, stay="https://www.merriam-webster.com/games/vocabulary-quiz", live=True,

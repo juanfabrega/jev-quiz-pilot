@@ -127,7 +127,9 @@
       if (members.length < 2 || members.length > 8) return;
       members.forEach(e => {
         e.setAttribute('data-jev-tile', '');
-        addOption('tile:' + idOf(g), 'radio', e, {label: txt(e), sel: `[data-jev="${idOf(e)}"]`, tile: true});
+        // Its tag and classes, numbers dropped ("choice choice-2"), so a Next button among the tiles stands out.
+        const look = e.tagName + ' ' + (e.getAttribute('class') || '').replace(/\d+/g, '');
+        addOption('tile:' + idOf(g), 'radio', e, {label: txt(e), sel: `[data-jev="${idOf(e)}"]`, tile: true, look});
       });
     });
   }

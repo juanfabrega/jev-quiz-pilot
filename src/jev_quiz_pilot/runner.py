@@ -36,7 +36,8 @@ def changed(page, sel, before, wait=1.0):
         time.sleep(0.2)
 
 # A question block with more text pieces than this likely holds site text too, so Jev picks the pieces.
-NOISY_PIECES = 6
+# Merriam-Webster has 5: progress, timer, score, and difficulty around the question.
+NOISY_PIECES = 4
 
 # The whole label must be a navigation word, so "Next (Shift + N)" on an ad's video player doesn't match.
 ARROW = r"[›>→»❯❱▸▶►⟩〉]"
@@ -58,10 +59,12 @@ def is_control(label):
 
 def without_controls(f):
     """A tile group minus any quiz controls in it, e.g. a Next button in the row of answers.
-    None if fewer than two answers remain."""
+    None if fewer than two answers remain. A control's label that looks like the answers in markup
+    is an answer, e.g. "begin" in a vocabulary quiz."""
     if not any(o.get("tile") for o in f.get("options", [])):
         return f
-    options = [o for o in f["options"] if not is_control(o["label"])]
+    looks = {o.get("look") for o in f["options"] if not is_control(o["label"])} - {None}
+    options = [o for o in f["options"] if not is_control(o["label"]) or o.get("look") in looks]
     return {**f, "options": options} if len(options) >= 2 else None
 
 
@@ -135,11 +138,12 @@ class Session:
             except PlaywrightError:
                 pass
 
-    def wait_for_fields(self, timeout=10):
-        """Pages built by JavaScript can show their questions a few seconds after loading."""
+    def wait_for_fields(self, done=frozenset(), timeout=10):
+        """Pages built by JavaScript can show their questions a few seconds after loading.
+        Fields matching a key in `done` were answered already and don't count."""
         end = time.time() + timeout
         while True:
-            fields = self.page.evaluate(EXTRACT_JS)
+            fields = [f for f in self.page.evaluate(EXTRACT_JS) if not field_keys(f) & done]
             if fields or time.time() > end:
                 return fields
             time.sleep(0.5)
@@ -334,13 +338,16 @@ class Session:
             self.answer_text(f)
 
     def run(self, max_pages=200):
-        # Answered fields, kept across pages: a quiz that swaps questions in place may leave the old ones
-        # in the page, e.g. sliding out of view. A key repeats only for the same question and labels.
-        done = set()
+        # Answered fields, kept while the page stays loaded: a quiz that swaps questions in place may leave
+        # the old ones in the page, e.g. scrolled out of view. A new page load restarts the data-jev ids,
+        # so its keys could match old ones by chance; then start over.
+        done, doc = set(), None
         for step in range(1, max_pages + 1):
             self.page.wait_for_load_state("domcontentloaded")
             time.sleep(0.8)  # let single-page apps finish rendering
-            fields = self.wait_for_fields()
+            if doc != (doc := self.page.evaluate("performance.timeOrigin")):
+                done = set()
+            fields = self.wait_for_fields(done)
             print(f"\n— Page {step}: {len(fields)} field(s)")
             self.dismiss_banners()
             # Some quizzes are one long page that reveals questions as you answer, so keep
