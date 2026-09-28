@@ -1,6 +1,6 @@
 [project]
 name = "jev-quiz-pilot"
-version = "0.4.1"
+version = "0.5.0"
 description = "Let Jev (TypeSafe, via OpenRouter) navigate a web quiz in your Chrome, so you can measure how it does."
 readme = "README.md"
 license = "MIT"
