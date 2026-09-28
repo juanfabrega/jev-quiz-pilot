@@ -82,8 +82,8 @@ A browser window opens at the quiz. The tool then:
 
 1. Asks who Jev should act as, and your name and email for identity fields. Press Enter to skip any question.
 2. Prints the matching command, so later runs need no prompts.
-3. Waits while you log in or open the first question, if needed. Press Enter to start.
-4. Answers each page and clicks Next. It stops before the final Submit unless you pass `--submit`.
+3. Waits while you log in or open the first question, if needed. Press Enter to start. To have the tool press the quiz's Start button, pass `--start "Start Quiz"` with the button's text.
+4. Answers each page and clicks Next. It stops before the final Submit unless you pass `--submit`. If the page refuses Next and shows an error, such as a required question left blank, the tool prints the error and waits for you to fix it.
 5. Keeps the window open until you press Enter, so you can review the answers.
 
 Repeat runs skip the prompts:
@@ -125,6 +125,7 @@ uv run jev-quiz-pilot --cdp-url http://localhost:9222
 | `--role TEXT` | Who Jev acts as. Keep it short; unrelated text lowers accuracy. |
 | `--info KEY=VALUE` | A fact for identity fields, such as `full_name="Jane Doe"` or `email=jane@example.com`. Repeatable. |
 | `--min-confidence N` | Below this, the tool pauses so you answer. Default `0.6`. |
+| `--start TEXT` | Click this text before the quiz, such as a Start button. Repeatable; clicked in order. Needed with `--no-pause` or `--yes` when the quiz has a Start button. |
 | `--submit` | Click the final Submit button. Off by default. |
 | `--no-pause` | Never wait for you. On low confidence, use Jev's pick anyway, except on answer tiles, which it skips. Fields it isn't sure belong to the quiz are skipped. |
 | `--provider NAME` | `auto`, `typesafe`, or `openrouter`. Default `auto` uses whichever key is set, TypeSafe first. |
@@ -177,8 +178,8 @@ Each field type uses a different request:
 
 | Field | Request to Jev |
 |---|---|
-| Radio buttons (including ARIA ones), dropdown, answer tiles | One `choice` over the options. Below `--min-confidence`, the tool pauses. Answer tiles are clickable elements with no form input, such as JetPunk's; with `--no-pause`, a low-confidence tile pick is skipped. |
-| Checkboxes, including ARIA ones | One `noul` (probability of yes) per option, all in one request. The option list goes in the `state`, since the questions can't see each other. Any probability between 0.35 and 0.65 pauses. |
+| Radio buttons and dropdowns (including ARIA ones, as in Google Forms), answer tiles | One `choice` over the options. A question's description, such as Google Forms' help text, goes in the `state`. Below `--min-confidence`, the tool pauses. Answer tiles are clickable elements with no form input, such as JetPunk's; with `--no-pause`, a low-confidence tile pick is skipped. |
+| Checkboxes, including ARIA ones | One `noul` (probability of yes) per option, all in one request. The option list goes in the `state`, since the questions can't see each other. Any probability between 0.35 and 0.65 pauses. If the question says how many to pick ("select any 2"), or a required question would get no ticks, the tool ticks Jev's most likely options to fit. |
 | Text box | One `choice` over your `--info` keys, such as `full_name`. Anything else pauses. Multi-line boxes are skipped. |
 
 If a request to Jev fails, the tool pauses for you on that field.
@@ -204,7 +205,7 @@ uv run pytest
 
 The tests load a local HTML quiz in headless Chromium. They need no API key.
 
-The benchmark runs the tool on real quiz sites and scores how it navigates them, not Jev's answers. For each question, it checks that the tool found it, read clean question text and every option, and made the click register. It also checks that the tool touched nothing outside the quiz, reached the end, and stayed on the quiz.
+The benchmark runs the tool on real quiz sites and scores how it navigates them, not Jev's answers. For each question, it checks that the tool found it, read clean question text and every option, and made the click register. It also checks that the tool touched nothing outside the quiz, reached the end, stayed on the quiz, and got past every Next.
 
 ```sh
 uv run python bench/run.py --fake-answers      # all cases; answers skip Jev (always the last option)

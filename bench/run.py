@@ -30,13 +30,14 @@ from cases import CASES  # noqa: E402
 
 # Reads each question and its options with the case's own selectors.
 TRUTH_JS = """(c) => {
-  const txt = e => (e.innerText || '').replace(/\\s+/g, ' ').trim();
+  const txt = e => (e.innerText || e.getAttribute('aria-label') || '').replace(/\\s+/g, ' ').trim();  // grid cells have only a label
   window.__benchIds = window.__benchIds || 0;
   return [...document.querySelectorAll(c.block)].filter(b => b.getClientRects().length).map(b => {
     b.dataset.benchId = b.dataset.benchId || performance.timeOrigin + '#' + window.__benchIds++;  // unique per page load
-    const options = [...b.querySelectorAll(c.option)].map(txt).filter(Boolean);
+    const options = [...new Set([...b.querySelectorAll(c.option)].map(txt))].filter(Boolean);  // a dropdown may copy its options
     let question;
-    if (c.question) question = txt(b.querySelector(c.question));
+    const q = c.question && b.querySelector(c.question);
+    if (q) question = txt(q);
     else {
       const copy = b.cloneNode(true);
       copy.querySelectorAll(c.option + (c.exclude ? ',' + c.exclude : '')).forEach(e => e.remove());
@@ -86,7 +87,8 @@ def score(case, truth, decisions, output, final_url, error):
              missed=[k[:80] for k in truth if k not in matched][:5],
              unclean=[matched[k]["question"][:120] for k in matched if k not in clean][:3],
              option_diffs=[(matched[k]["options"], truth[k]) for k in matched if k not in options][:3])
-    r["pass"] = (not error and stay_ok and end_ok and r["stray"] == 0
+    r["stuck"] = "didn't move on" in output  # Next refused, e.g. an answer broke the form's rules
+    r["pass"] = (not error and stay_ok and end_ok and not r["stuck"] and r["stray"] == 0
                  and r["found"] == r["clean"] == r["options"] == r["checked"] == total)
     return r
 
@@ -126,8 +128,8 @@ def run_one(name, out_dir, fake_answers, record):
                 except Exception:
                     pass  # page mid-navigation
 
-        def wait_for_fields(self, timeout=10):
-            fields = super().wait_for_fields(timeout)
+        def wait_for_fields(self, *args, **kwargs):
+            fields = super().wait_for_fields(*args, **kwargs)
             self.look()
             return fields
 
@@ -151,9 +153,7 @@ def run_one(name, out_dir, fake_answers, record):
         try:
             page.goto(case["url"], wait_until="domcontentloaded", timeout=45000)
             time.sleep(3)
-            for text in case.get("start", []):
-                page.get_by_text(text).first.click(timeout=10000)
-                time.sleep(2)
+            runner.press_start(page, case.get("start", []))
             session = Scored(page, provider, "You are an expert. Pick the correct answer.", log,
                              pause=False, submit=False)
             session.run(max_pages=40)
@@ -210,7 +210,7 @@ def main():
 
     cols = ["found", "clean", "options", "checked"]
     print(f"\n{'case':24} {'pass':5} {'total':>5} {'seen':>5} " + " ".join(f"{c:>7}" for c in cols)
-          + f" {'stray':>5} {'end':>4} {'stay':>4} {'secs':>5}")
+          + f" {'stray':>5} {'end':>4} {'stay':>4} {'moved':>5} {'secs':>5}")
     for r in results:
         if "total" not in r:
             print(f"{r['name']:24} {'FAIL':5} {r['error']}")
@@ -218,7 +218,7 @@ def main():
         print(f"{r['name']:24} {'ok' if r['pass'] else 'FAIL':5} {r['total']:>5} {r['seen']:>5} "
               + " ".join(f"{r[c]:>7}" for c in cols)
               + f" {r['stray']:>5} {'ok' if r['end_ok'] else 'no':>4} {'ok' if r['stay_ok'] else 'no':>4}"
-              + f" {r['seconds']:>5}" + (f"  {r['error']}" if r["error"] else ""))
+              + f" {'no' if r.get('stuck') else 'ok':>5} {r['seconds']:>5}" + (f"  {r['error']}" if r["error"] else ""))
     passed = sum(r["pass"] for r in results)
     print(f"\n{passed}/{len(results)} cases pass. Details: {out}")
     (out / "summary.json").write_text(json.dumps(results, indent=1))

@@ -25,11 +25,19 @@ NAV_JS = (HERE / "nav.js").read_text()
 TILE_STATE_JS = "s => { const e = document.querySelector(s); return e ? e.outerHTML + e.parentElement.outerHTML : '' }"
 
 
-def changed(page, sel, before, wait=1.0):
-    """Whether a tile looks different from before, checking for up to `wait` seconds as it restyles."""
+def press_start(page, texts):
+    """Click each text in order, e.g. a quiz's Start button, waiting for the page to react after each."""
+    for text in texts:
+        page.get_by_text(text).first.click(timeout=10000)
+        time.sleep(2)
+
+
+def changed(page, sel, before, read=None, wait=1.0):
+    """Whether a tile looks different from before, checking for up to `wait` seconds as it restyles.
+    `read` gets the state to compare; the default reads the tile and its surroundings."""
     end = time.time() + wait
     while True:
-        if page.evaluate(TILE_STATE_JS, sel) != before:
+        if (read(sel) if read else page.evaluate(TILE_STATE_JS, sel)) != before:
             return True
         if time.time() > end:
             return False
@@ -47,6 +55,37 @@ NEXT_RE = re.compile(
 SUBMIT_RE = re.compile(
     rf"^\s*(submit|finish|done|send|complete|end)(\s+(my|your|all))?(\s+(test|exam|assessment|quiz|answers?))?"
     rf"\s*[!.]?\s*{ARROW}?\s*$", re.I)
+
+# "Select any 2", "you need to select 2 options", "choose up to 3": how many checkboxes the question wants.
+COUNT_RE = re.compile(r"\b(?:select|choose|pick|tick|check|mark)\s+(?:(any|exactly|up to|at most|no more than|at least)\s+)?"
+                      r"(\d+|one|two|three|four|five|six)\b(?!\s+or\s+more)", re.I)
+NUMBERS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+
+
+def pick_count(text):
+    """(fewest, most) checkboxes the text asks for, or None if it doesn't say."""
+    m = COUNT_RE.search(text)
+    if not m:
+        return None
+    n = int(NUMBERS.get(m[2].lower(), m[2]))
+    word = (m[1] or "").lower()
+    return (1, n) if word in ("up to", "at most", "no more than") else (n, 99) if word == "at least" else (n, n)
+
+
+def within_count(probs, count):
+    """Which options to tick: Jev's yes answers, then the most likely added or the least likely dropped to meet
+    `count`, the (fewest, most) the question allows."""
+    ticks = [p >= 0.5 for p in probs]
+    if count:
+        ranked = sorted(range(len(probs)), key=lambda i: -probs[i])
+        n = min(max(sum(ticks), count[0]), count[1], len(probs))
+        ticks = [i in ranked[:n] for i in range(len(probs))]
+    return ticks
+
+
+# Error messages a page shows, e.g. Google Forms' "You need to select two choices" when Next is refused.
+ALERTS_JS = ("() => [...document.querySelectorAll('[role=alert]')].filter(e => e.offsetWidth || e.offsetHeight)"
+             ".map(e => e.innerText.trim()).filter(Boolean)")
 
 # Buttons that run the quiz rather than answer it. A group of tiles holding one is not a question.
 CONTROL_RE = re.compile(r"^\s*(start|begin|restart|retry|try again|play again|take (it|the quiz) again|share|"
@@ -183,6 +222,8 @@ class Session:
         question = self.question_text(f)
         print(f" Q: {question[:100]!r} [{f['kind']}]")
         state = {"role": self.role, "assessment_question": question}
+        if f.get("hint"):
+            state["question_notes"] = f["hint"]
         answers = self.ask(state, {"pick": {
             "type": "choice",
             "instructions": "Which option is the correct answer to the assessment question?",
@@ -206,7 +247,17 @@ class Session:
                 self.record(**entry)  # you pick, so no click to check
             if self.ask_human(f["question"]):
                 return
-        if f["kind"] == "select":
+        if f["kind"] == "select" and option.get("sel"):  # an ARIA dropdown: open it, then click the option
+            try:
+                self.page.click(f["sel"], timeout=5000)
+                # Google Forms copies the options into a popup, ids included, so click the copy you can see.
+                self.page.locator(option["sel"]).locator("visible=true").first.click(timeout=5000)
+                checked = changed(self.page, option["sel"], False,
+                                  lambda s: self.page.get_attribute(s, "aria-selected") == "true")
+            except PlaywrightError:
+                print("   ⚠ Couldn't pick from the dropdown")
+                checked = False
+        elif f["kind"] == "select":
             self.page.select_option(f["sel"], option["value"])
             checked = self.page.input_value(f["sel"]) == option["value"]
         elif option.get("tile"):
@@ -232,6 +283,8 @@ class Session:
         question = self.question_text(f)
         print(f" Q: {question[:100]!r} [checkbox]")
         state = {"role": self.role, "assessment_question": question, "all_options": labels}
+        if f.get("hint"):
+            state["question_notes"] = f["hint"]
         qs = {f"opt{i}": {"type": "noul",
                           "instructions": f"Is this option a correct answer to the question: {label!r}?"}
               for i, label in enumerate(labels)}
@@ -241,14 +294,18 @@ class Session:
         except (TypeError, KeyError):
             self.ask_human(f["question"], "No usable answer from Jev")
             return
-        for label, p in zip(labels, probs):
-            print(f"   {'☑' if p >= 0.5 else '☐'} {label!r} (p={p:.2f})")
+        count = pick_count(f"{question} {f.get('hint', '')}") or ((1, 99) if f.get("required") else None)
+        ticks = within_count(probs, count)
+        for label, p, t in zip(labels, probs, ticks):
+            print(f"   {'☑' if t else '☐'} {label!r} (p={p:.2f})")
+        if ticks != [p >= 0.5 for p in probs]:
+            print("   (the question limits how many to tick, so the tool kept Jev's most likely)")
         if any(0.35 < p < 0.65 for p in probs):
             if self.pause:
                 self.record(question=question, kind="checkbox", options=labels, probs=probs)
             if self.ask_human(f["question"]):
                 return
-        checked = all([self.set_checked(o["sel"], p >= 0.5) for o, p in zip(f["options"], probs)])
+        checked = all([self.set_checked(o["sel"], t) for o, t in zip(f["options"], ticks)])
         self.record(question=question, kind="checkbox", options=labels, probs=probs, checked=checked)
 
     def answer_text(self, f):
@@ -275,13 +332,37 @@ class Session:
         print(f"   → {a['choice']} (confidence {a['confidence']:.2f})")
         self.page.fill(f["sel"], self.info[a["choice"]])
 
+    def refused(self, before, url, wait=2.0):
+        """Error messages that appeared after clicking Next, checking for up to `wait` seconds.
+        Empty once the page moves on."""
+        end = time.time() + wait
+        while time.time() < end:
+            time.sleep(0.3)
+            try:
+                if self.page.url != url:
+                    return []
+                errors = [e for e in self.page.evaluate(ALERTS_JS) if e not in before]
+            except PlaywrightError:
+                return []  # the page is navigating
+            if errors:
+                return errors
+        return []
+
     def click_forward(self):
         """Click Next/Continue. Returns False when finished or stopping at Submit."""
         for i, label in enumerate(self.page.evaluate(NAV_JS)):
             b = self.page.locator(f'[data-jev-nav="{i}"]')
             if NEXT_RE.search(label):
+                before, url = set(self.page.evaluate(ALERTS_JS)), self.page.url
                 b.click()
-                return True
+                if not (errors := self.refused(before, url)):
+                    return True
+                print(f"\n⚠ The page didn't move on. It says: {'; '.join(errors)[:300]}")
+                self.record(stuck=errors)
+                if self.pause:
+                    input("   Fix what it flags, click Next yourself, then press Enter… ")
+                    return True
+                return False
             if SUBMIT_RE.search(label):
                 if not self.submit:
                     print("\n✋ Reached Submit. Review the answers and click it yourself.")
@@ -348,6 +429,7 @@ class Session:
             if doc != (doc := self.page.evaluate("performance.timeOrigin")):
                 done = set()
             fields = self.wait_for_fields(done)
+            before = set(done)  # answered on earlier pages
             print(f"\n— Page {step}: {len(fields)} field(s)")
             self.dismiss_banners()
             # Some quizzes are one long page that reveals questions as you answer, so keep
@@ -364,8 +446,13 @@ class Session:
                 time.sleep(0.5)
                 fields = [f for f in self.page.evaluate(EXTRACT_JS) if not field_keys(f) & done]
             if not answered:
-                # A Next button here could lead anywhere, such as another quiz, so don't guess.
-                print("\nFound no quiz questions on this page, so stopping here.")
+                left = self.page.evaluate(EXTRACT_JS)
+                if step > 1 and left and all(field_keys(f) & before for f in left):
+                    # Only answered questions: Next was refused, or the page redrew the same questions.
+                    print("\n⚠ The page didn't move on after Next. Check it for an error message.")
+                else:
+                    # A Next button here could lead anywhere, such as another quiz, so don't guess.
+                    print("\nFound no quiz questions on this page, so stopping here.")
                 break
             if not self.click_forward():
                 break

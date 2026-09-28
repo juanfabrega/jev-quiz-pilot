@@ -7,5 +7,28 @@
     <div role="radio" aria-checked="false" tabindex="0">Blue</div>
     <div role="radio" aria-checked="false" tabindex="0">Green</div>
   </div>
+  <!-- Google Forms: each checkbox in its own list item, in a list named by the question. -->
+  <div role="listitem">
+    <div role="heading" id="q2">Which are planets?</div>
+    <div id="q2-hint">Select exactly 1.</div>
+    <div role="list" aria-labelledby="q2" aria-describedby="q2-hint" aria-required="true">
+      <div role="listitem"><label><div role="checkbox" aria-checked="false" aria-label="Mars"></div>Mars</label></div>
+      <div role="listitem"><label><div role="checkbox" aria-checked="false" aria-label="Moon"></div>Moon</label></div>
+    </div>
+  </div>
+  <!-- Google Forms: a dropdown drawn with ARIA, with a placeholder option. -->
+  <div role="listitem">
+    <div role="heading">Which is the largest ocean?</div>
+    <div role="listbox" aria-labelledby="q3">
+      <div role="option" data-value="" aria-selected="true">Choose</div>
+      <div role="option" data-value="Pacific" aria-selected="false">Pacific</div>
+      <div role="option" data-value="Arctic" aria-selected="false">Arctic</div>
+    </div>
+  </div>
+  <!-- Google Forms: a text box labelled by the question. -->
+  <div role="listitem">
+    <div role="heading" id="q4">Your first name</div>
+    <input type="text" aria-labelledby="q4 q4-hint"><span id="q4-hint">Your answer</span>
+  </div>
 </body>
 </html>

@@ -37,6 +37,8 @@ def build_parser():
                    help="A fact for identity fields, e.g. full_name='Jane Doe' or email=jane@example.com. Repeatable.")
     p.add_argument("--min-confidence", type=float, default=0.6,
                    help="Below this, pause so you answer (default: 0.6).")
+    p.add_argument("--start", action="append", default=[], metavar="TEXT",
+                   help="Click this text before the quiz, e.g. --start 'Start Quiz'. Repeatable, clicked in order.")
     p.add_argument("--submit", action="store_true", help="Click the final Submit button. Off by default.")
     p.add_argument("--no-pause", action="store_true",
                    help="Never wait for you. On low confidence, use Jev's pick anyway, except on answer tiles. "
@@ -101,6 +103,8 @@ def rerun_command(args, info):
             cmd += ["--info", f"{k}={v}"]
     if args.min_confidence != 0.6:
         cmd += ["--min-confidence", str(args.min_confidence)]
+    for text in args.start:
+        cmd += ["--start", text]
     if args.submit:
         cmd.append("--submit")
     if args.no_pause:
@@ -129,7 +133,8 @@ def open_quiz(p, args, interactive):
         page = browser.new_context(no_viewport=True).new_page()
         page.goto(args.url, wait_until="domcontentloaded")  # ad-heavy pages may never finish loading
         if interactive:
-            input("Log in or go to the first question if needed, then press Enter to start… ")
+            input("Log in if needed, then press Enter to start… " if args.start else
+                  "Log in or go to the first question if needed, then press Enter to start… ")
         return page.context.pages[-1], browser
     cdp_url = args.cdp_url or DEFAULT_CDP_URL
     try:
@@ -175,7 +180,7 @@ def main():
         from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright
 
-        from .runner import Session
+        from .runner import Session, press_start
 
         log_path = Path("runs") / f"{datetime.now():%Y%m%d-%H%M%S}.jsonl"
         log_path.parent.mkdir(exist_ok=True)
@@ -185,6 +190,10 @@ def main():
             print(f"Controlling: {page.title()}  ({page.url})")
             print(f"Provider: {provider.name} ({provider.key_env}, model {provider.model})")
             print(f"Role: {role}\nLog: {log_path}")
+            try:
+                press_start(page, args.start)
+            except PlaywrightError:
+                sys.exit(f"Couldn't click the start text. Check it matches the page: {args.start}")
             try:
                 Session(page, provider, role, log_path, info=info, min_confidence=args.min_confidence,
                         submit=args.submit, pause=not args.no_pause).run()

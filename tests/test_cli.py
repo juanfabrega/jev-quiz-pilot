@@ -36,3 +36,8 @@ def test_normalize_url(tmp_path):
 def test_rerun_command_puts_url_first():
     args = build_parser().parse_args(["https://example.com/quiz", "--no-pause"])
     assert rerun_command(args, {}) == "jev-quiz-pilot https://example.com/quiz --yes --no-pause"
+
+
+def test_rerun_command_keeps_start_texts_in_order():
+    args = build_parser().parse_args(["https://example.com/quiz", "--start", "Start Quiz", "--start", "Go"])
+    assert rerun_command(args, {}) == "jev-quiz-pilot https://example.com/quiz --yes --start 'Start Quiz' --start Go"

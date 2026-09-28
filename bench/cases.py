@@ -4,7 +4,8 @@ The benchmark scores the harness, not Jev. So each case says where the quiz's qu
 using selectors written by hand for that site, never our own extractor:
 
   block     one element per question
-  question  the question text inside the block. Leave out to use the block's text minus the options.
+  question  the question text inside the block. Leave out, or match nothing in a block, to use the block's
+            text minus the options.
   option    each answer option inside the block
   exclude   parts of the block that are not question text, such as explanations or buttons
 
@@ -73,6 +74,19 @@ CASES = {
         url="https://www.merriam-webster.com/games/vocabulary-quiz", start=["START THE QUIZ"],
         total=10, stay="https://www.merriam-webster.com/games/vocabulary-quiz", live=True,
         block=".question-gstage", question=".question p", option="a.choice",
+    ),
+    # Google Forms: ARIA radios, checkboxes, and dropdowns, and grids of them, no form inputs. A demo of
+    # every question type over 3 pages; grid rows count as questions. Page 1 refuses Next unless the
+    # checkbox question has exactly 2 ticks and each tick-box grid row has one. Text, date, and file
+    # questions aren't scored, nor page 3's feedback question with an "Other" box: Jev is unsure it
+    # belongs to the form, so the tool skips it with --no-pause.
+    "google-forms": dict(
+        url="https://docs.google.com/forms/d/e/1FAIpQLSciCcNILfeSdgUavm_GYuCFE_G8InD1YVkIWAiTU_B3-l9AkA/viewform",
+        live=True,
+        block="[role=listitem]:has([role=heading]):not(:has(input[type=text])):is(:has([role=radiogroup][aria-labelledby]), "
+              ":has([role=list] [role=checkbox]), :has([role=listbox])), "
+              "[role=radiogroup][aria-label], [role=group]:has([role=checkbox])",
+        question="[role=heading]", option="[role=radio], [role=checkbox], [role=option]:not([data-value=''])",
     ),
     # Not quizzes at the start: exam settings, Google Translate, and a comment form.
     "4tests-settings": dict(url="https://www.4tests.com/sat", live=True),  # the snapshot never finishes loading

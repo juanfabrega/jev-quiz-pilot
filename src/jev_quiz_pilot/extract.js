@@ -5,13 +5,27 @@
   const labelFor = el => {
     if (el.id) { const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`); if (l) return txt(l); }
     const wrap = el.closest('label'); if (wrap) return txt(wrap);
+    const lb = el.getAttribute('aria-labelledby') && document.getElementById(el.getAttribute('aria-labelledby').split(' ')[0]);
+    if (lb && txt(lb)) return txt(lb);  // e.g. Google Forms text boxes
     return el.getAttribute('aria-label') || el.placeholder || el.name || '';
+  };
+  // A question's description, such as "you need to select 2 options": what the nearest aria-describedby names.
+  const hintFor = el => {
+    const d = el.closest('[aria-describedby]'); if (!d) return '';
+    return d.getAttribute('aria-describedby').split(' ').map(i => txt(document.getElementById(i))).filter(Boolean).join(' ').slice(0, 500);
+  };
+  // The list of options an ARIA radio or checkbox sits in, one per list item, e.g. Google Forms checkboxes.
+  // null for anything else, such as a row of a grid question.
+  const optionList = el => {
+    const item = el.closest('[role=listitem]');
+    return item && item.querySelectorAll('[role=radio],[role=checkbox]').length === 1
+      ? item.parentElement.closest('[role=list]') : null;
   };
   // The question from markup that names it: a legend or a labelled group. '' if there is none.
   const namedQuestion = el => {
     const fs = el.closest('fieldset'); if (fs && fs.querySelector('legend')) return txt(fs.querySelector('legend'));
-    const grp = el.closest('[role=radiogroup],[role=group],[role=listitem]');
-    if (grp) {
+    for (const grp of [el.closest('[role=radiogroup],[role=group],[role=listitem]'), optionList(el)]) {
+      if (!grp) continue;
       const lb = grp.getAttribute('aria-labelledby');
       if (lb) { const e = document.getElementById(lb.split(' ')[0]); if (e) return txt(e); }
       if (grp.getAttribute('aria-label')) return grp.getAttribute('aria-label');
@@ -101,9 +115,20 @@
   document.querySelectorAll('[role=radio], [role=checkbox]').forEach(el => {
     if (!vis(el) || el.getAttribute('aria-disabled') === 'true' || el.querySelector('input')) return;
     const kind = el.getAttribute('role'), id = idOf(el);
-    const grp = el.closest('[role=radiogroup], [role=group], [role=listbox]') || el.parentElement;
+    const grp = el.closest('[role=radiogroup], [role=group], [role=listbox]') || optionList(el) || el.parentElement;
     addOption(`aria-${kind}:${idOf(grp)}`, kind, el,
               {label: el.getAttribute('aria-label') || txt(el), sel: `[data-jev="${id}"]`});
+  });
+  // ARIA dropdowns, e.g. Google Forms. An option with an empty value is a placeholder, such as "Choose".
+  document.querySelectorAll('[role=listbox]').forEach(el => {
+    if (!vis(el) || el.getAttribute('aria-disabled') === 'true') return;
+    const options = [...el.querySelectorAll('[role=option]')]
+      .filter(o => o.getAttribute('data-value') !== '' && o.getAttribute('aria-disabled') !== 'true');
+    if (options.length < 2) return;
+    const id = idOf(el);
+    fields.push({key: 'aria-select:' + id, kind: 'select', question: namedQuestion(el) || labelFor(el),
+      sel: `[data-jev="${id}"]`,
+      options: options.map(o => ({label: txt(o) || o.getAttribute('aria-label') || '', sel: `[data-jev="${idOf(o)}"]`}))});
   });
   // Answer tiles: sibling elements styled as clickable, with short text and no inputs, e.g. JetPunk.
   // Only on pages without radio or checkbox groups, since menus and buttons look the same. Jev then
@@ -112,7 +137,7 @@
     const pointer = e => e && getComputedStyle(e).cursor === 'pointer';
     const tiles = [...document.body.querySelectorAll('div, li, span, button, a, label')].filter(e => {
       if (!vis(e) || !pointer(e) || pointer(e.parentElement) || e.querySelector('input, select, textarea')) return false;
-      if (e.closest('nav, header, footer, [role=navigation], [role=banner], [role=dialog]')) return false;
+      if (e.closest('nav, header, footer, [role=navigation], [role=banner], [role=dialog], [role=listbox]')) return false;
       // A plain link leads away. One with a #fragment or javascript: is usually handled in the page (Merriam-Webster).
       if (e.tagName === 'A' && e.getAttribute('href') && !/#|^javascript:/.test(e.getAttribute('href'))) return false;
       const t = txt(e); return t && t.length <= 150;
@@ -133,6 +158,12 @@
       });
     });
   }
+  fields.forEach(f => {
+    const el = groups[f.key] ? groups[f.key][0] : document.querySelector(f.sel);
+    const hint = hintFor(el);
+    if (hint) f.hint = hint;
+    if (el.closest('[aria-required=true]')) f.required = true;  // e.g. a Google Forms grid: one tick per row
+  });
   fields.forEach((f, i) => {
     if (f.question || !groups[f.key]) return;
     if (groups[f.key].length > 1) Object.assign(f, questionBlock(groups[f.key], i));

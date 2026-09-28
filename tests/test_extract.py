@@ -79,10 +79,35 @@ def test_formula_keeps_fractions_and_powers(block_fields):
     assert block_fields[2]["question"] == "3. Solve y=(1)/(4)x^(2) for y."
 
 
-def test_aria_radios_are_read_like_inputs(extract):
-    [f] = extract("quiz_widgets.html")
-    assert (f["kind"], f["question"]) == ("radio", "What color is the sky?")
+@pytest.fixture(scope="module")
+def widget_fields(extract):
+    return {f["kind"]: f for f in extract("quiz_widgets.html")}
+
+
+def test_aria_radios_are_read_like_inputs(widget_fields):
+    f = widget_fields["radio"]
+    assert f["question"] == "What color is the sky?"
     assert [o["label"] for o in f["options"]] == ["Blue", "Green"]
+
+
+def test_aria_checkboxes_in_a_list_are_one_question(widget_fields):
+    assert sorted(widget_fields) == ["checkbox", "radio", "select", "text"]
+    f = widget_fields["checkbox"]
+    assert f["question"] == "Which are planets?"
+    assert [o["label"] for o in f["options"]] == ["Mars", "Moon"]
+    assert f["hint"] == "Select exactly 1."
+    assert f["required"] and not widget_fields["radio"].get("required")
+
+
+def test_aria_dropdown_is_read_without_its_placeholder(widget_fields):
+    f = widget_fields["select"]
+    assert f["question"] == "Which is the largest ocean?"
+    assert [o["label"] for o in f["options"]] == ["Pacific", "Arctic"]
+    assert all(o["sel"] for o in f["options"])
+
+
+def test_text_box_label_comes_from_aria_labelledby(widget_fields):
+    assert widget_fields["text"]["question"] == "Your first name"
 
 
 def test_clickable_tiles_become_a_choice_outside_nav(extract):

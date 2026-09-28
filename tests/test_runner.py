@@ -1,6 +1,6 @@
 import pytest
 
-from jev_quiz_pilot.runner import NEXT_RE, SUBMIT_RE, without_controls
+from jev_quiz_pilot.runner import NEXT_RE, SUBMIT_RE, pick_count, within_count, without_controls
 
 
 @pytest.mark.parametrize("label", ["Next", "next question", "Continue →", "›", "Save & Next", "Proceed", "Next ❯"])
@@ -54,3 +54,24 @@ def test_a_next_button_styled_unlike_the_answers_is_dropped():
     for o in f["options"]:
         o["look"] = "DIV question-gstage__next" if o["label"] == "Next" else "A choice choice-"
     assert [o["label"] for o in without_controls(f)["options"]] == ["enemy", "actor", "builder"]
+
+
+@pytest.mark.parametrize("text, count", [
+    ("Holiday activities you enjoy - Select any 2", (2, 2)),
+    ("In this example, you need to select 2 options.", (2, 2)),
+    ("Choose up to three answers", (1, 3)),
+    ("Tick at least 2 boxes", (2, 99)),
+    ("Select all that apply", None),
+    ("Select one or more", None),
+    ("Check your answers before you submit", None),
+])
+def test_pick_count(text, count):
+    assert pick_count(text) == count
+
+
+def test_within_count_keeps_the_most_likely():
+    probs = [0.75, 0.68, 0.74, 0.75, 0.67]
+    assert within_count(probs, (2, 2)) == [True, False, False, True, False]
+    assert within_count([0.2, 0.4, 0.1], (2, 2)) == [True, True, False]
+    assert within_count([0.9, 0.2], None) == [True, False]
+    assert within_count([0.9, 0.8, 0.7], (1, 2)) == [True, True, False]
